@@ -1,0 +1,2622 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light dark" />
+<title>AlgoGlass — Sorting & Searching Visualizer</title>
+<style>
+  :root {
+    --bg-0: #031416;
+    --bg-1: #052126;
+    --glass: rgba(10, 62, 67, 0.24);
+    --glass-strong: rgba(10, 79, 85, 0.34);
+    --glass-clear: rgba(166, 255, 249, .055);
+    --glass-edge: rgba(215, 255, 252, .30);
+    --border: rgba(177, 255, 249, 0.16);
+    --border-hi: rgba(214, 255, 252, 0.34);
+    --text: #eaffff;
+    --muted: #88b7b9;
+    --cyan: #63fff2;
+    --cyan-2: #29d9d0;
+    --blue: #5fb9ff;
+    --purple: #a78bfa;
+    --orange: #ffbf69;
+    --red: #ff7c91;
+    --green: #68ffc2;
+    --shadow: 0 26px 90px rgba(0,0,0,.38);
+    --radius: 26px;
+    --ease-ios: cubic-bezier(.22,.9,.25,1);
+    --motion-ms: 250ms;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+    background:
+      radial-gradient(circle at 18% 10%, rgba(50, 255, 238, .16), transparent 28%),
+      radial-gradient(circle at 82% 22%, rgba(71, 153, 255, .14), transparent 30%),
+      radial-gradient(circle at 50% 98%, rgba(122, 88, 255, .10), transparent 34%),
+      linear-gradient(145deg, var(--bg-0), var(--bg-1) 42%, #031114);
+    overflow-x: hidden;
+  }
+
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    width: 380px;
+    height: 380px;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: -1;
+    animation: drift 14s ease-in-out infinite alternate;
+  }
+  body::before { left: -100px; top: 17vh; background: rgba(31, 255, 228, .08); }
+  body::after { right: -120px; bottom: 4vh; background: rgba(81, 130, 255, .09); animation-delay: -7s; }
+  @keyframes drift { to { transform: translate3d(55px,-25px,0) scale(1.12); } }
+
+  .app {
+    width: min(1520px, calc(100% - 30px));
+    margin: 0 auto;
+    padding: 22px 0 34px;
+  }
+
+  .glass {
+    position: relative;
+    background:
+      linear-gradient(145deg, rgba(120, 255, 246, .075), rgba(7, 42, 47, .16) 48%, rgba(1, 22, 26, .11)),
+      rgba(8, 51, 56, .18);
+    border: 1px solid var(--border);
+    border-top-color: var(--border-hi);
+    box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.11), inset 0 -1px 0 rgba(14,91,97,.20);
+    backdrop-filter: blur(28px) saturate(145%);
+    -webkit-backdrop-filter: blur(28px) saturate(145%);
+    border-radius: var(--radius);
+  }
+  .glass::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      linear-gradient(120deg, rgba(255,255,255,.105), transparent 23%, transparent 70%, rgba(93,255,244,.045)),
+      linear-gradient(180deg, rgba(255,255,255,.035), transparent 18%);
+    mask: linear-gradient(#000, transparent 55%);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px 20px;
+    position: sticky;
+    top: 12px;
+    z-index: 20;
+  }
+  /* The top board is intentionally much clearer than the content panels.
+     It behaves like a transparent glass shelf behind the floating menu capsule. */
+  header.glass {
+    background:
+      linear-gradient(145deg, rgba(236,255,254,.034), rgba(20,96,101,.018) 46%, rgba(0,18,21,.015)),
+      rgba(4, 38, 42, .055);
+    border-color: rgba(224,255,253,.115);
+    border-top-color: rgba(248,255,255,.22);
+    box-shadow:
+      0 18px 54px rgba(0,0,0,.16),
+      inset 0 1px 0 rgba(255,255,255,.085),
+      inset 0 -1px 0 rgba(31,118,122,.055);
+    backdrop-filter: blur(20px) saturate(142%);
+    -webkit-backdrop-filter: blur(20px) saturate(142%);
+  }
+  header.glass::after { opacity: .46; }
+  .brand { display: flex; align-items: center; gap: 13px; min-width: 0; }
+  .logo {
+    width: 44px; height: 44px; border-radius: 15px;
+    display: grid; place-items: center;
+    background:
+      linear-gradient(145deg, rgba(255,255,255,.075), rgba(96,255,244,.018) 50%, rgba(0,22,25,.012)),
+      rgba(73, 205, 198, .018);
+    border: 1px solid rgba(229,255,253,.18);
+    border-top-color: rgba(255,255,255,.31);
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.18),
+      inset -1px -1px 0 rgba(64,192,189,.04),
+      0 8px 20px rgba(0,0,0,.08);
+    backdrop-filter: blur(12px) saturate(145%);
+    -webkit-backdrop-filter: blur(12px) saturate(145%);
+  }
+  .logo svg { width: 25px; filter: drop-shadow(0 1px 5px rgba(107,255,244,.16)); }
+  .brand h1 { margin: 0; font-size: 17px; letter-spacing: .2px; }
+  .brand p { margin: 3px 0 0; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .segmented {
+    --capsule-x: 4px;
+    --capsule-w: 82px;
+    position: relative;
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 18px;
+    isolation: isolate;
+    background:
+      linear-gradient(180deg, rgba(52,222,215,.105), rgba(25,147,151,.052)),
+      rgba(6,55,61,.095);
+    border: 1px solid rgba(210,255,252,.115);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.08),
+      inset 0 -1px 0 rgba(12,67,72,.06),
+      0 6px 20px rgba(0,0,0,.07);
+    backdrop-filter: blur(17px) saturate(160%);
+    -webkit-backdrop-filter: blur(17px) saturate(160%);
+  }
+  .menu-capsule {
+    position: absolute;
+    z-index: 0;
+    left: 0;
+    top: 4px;
+    width: var(--capsule-w);
+    height: calc(100% - 8px);
+    border-radius: 14px;
+    pointer-events: none;
+    transform: translate3d(var(--capsule-x), -3px, 0) scale(1);
+    transform-origin: 50% 65%;
+    transition:
+      transform .62s cubic-bezier(.16,1.18,.28,1),
+      width .50s cubic-bezier(.20,.88,.24,1),
+      box-shadow .34s ease,
+      border-color .34s ease,
+      background .34s ease;
+    background:
+      radial-gradient(ellipse at 22% 0%, rgba(255,255,255,.34), transparent 42%),
+      linear-gradient(145deg, rgba(246,255,255,.19), rgba(112,255,246,.075) 45%, rgba(35,135,146,.045)),
+      rgba(90, 235, 229, .045);
+    border: 1px solid rgba(238,255,254,.48);
+    border-top-color: rgba(255,255,255,.74);
+    border-left-color: rgba(252,255,255,.58);
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.48),
+      inset -1px -1px 0 rgba(58,185,189,.08),
+      inset 0 -8px 18px rgba(4,47,52,.055),
+      0 9px 24px rgba(0,0,0,.16),
+      0 0 21px rgba(92,255,244,.07);
+    backdrop-filter: blur(20px) saturate(190%) brightness(1.08);
+    -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.08);
+  }
+  .menu-capsule::before {
+    content: "";
+    position: absolute;
+    left: 8%; right: 28%; top: 1px;
+    height: 44%;
+    border-radius: 999px;
+    background: radial-gradient(ellipse at 25% 0%, rgba(255,255,255,.56), rgba(255,255,255,.12) 38%, transparent 72%);
+    opacity: .82;
+  }
+  .menu-capsule::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.08);
+    box-shadow: inset 0 -8px 18px rgba(7,60,66,.06);
+  }
+  .segmented.switching .menu-capsule {
+    transform: translate3d(var(--capsule-x), -8px, 0) scale(1.045);
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.57),
+      inset -1px -1px 0 rgba(58,185,189,.08),
+      0 16px 31px rgba(0,0,0,.20),
+      0 0 28px rgba(104,255,245,.105);
+  }
+  .segmented button {
+    position: relative;
+    z-index: 1;
+    border: 0;
+    color: rgba(163,202,204,.76);
+    background: transparent;
+    padding: 9px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: color .35s ease, transform .48s cubic-bezier(.16,1.08,.28,1), opacity .35s ease;
+    font-weight: 750;
+    font-size: 12px;
+  }
+  .segmented button.active {
+    color: var(--text);
+    transform: translateY(-2px);
+    text-shadow: 0 1px 10px rgba(229,255,253,.16);
+  }
+  .segmented.switching button.active { transform: translateY(-5px) scale(1.015); }
+  .segmented button:not(.active) { opacity: .72; }
+
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(380px, .8fr);
+    gap: 16px;
+    margin-top: 16px;
+    align-items: start;
+  }
+  .panel { padding: 18px; overflow: hidden; }
+
+  .toolbar {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 14px;
+  }
+  .control-group label,
+  .small-label {
+    display: block; color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 7px 2px;
+  }
+  select, input[type="text"] {
+    width: 100%;
+    appearance: none;
+    border: 1px solid rgba(177,255,249,.12);
+    border-radius: 15px;
+    color: var(--text);
+    background: rgba(0, 13, 16, .28);
+    padding: 12px 13px;
+    outline: 0;
+    transition: .25s var(--ease-ios);
+  }
+  select:focus, input:focus { border-color: rgba(99,255,242,.5); box-shadow: 0 0 0 4px rgba(99,255,242,.08); }
+  select option { color: #eaffff; background: #08252a; }
+
+  .button-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  button.action {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    border: 1px solid rgba(229,255,253,.34);
+    border-top-color: rgba(248,255,255,.58);
+    border-left-color: rgba(240,255,254,.44);
+    color: var(--text);
+    background:
+      linear-gradient(145deg, rgba(255,255,255,.075), rgba(91,255,241,.024) 47%, rgba(5,41,46,.035)),
+      rgba(88, 225, 218, .028);
+    min-width: 42px; height: 42px; border-radius: 14px;
+    display: inline-grid; place-items: center;
+    cursor: pointer;
+    backdrop-filter: blur(17px) saturate(185%) brightness(1.05);
+    -webkit-backdrop-filter: blur(17px) saturate(185%) brightness(1.05);
+    transition: transform .18s var(--ease-ios), background .25s, border-color .25s, opacity .2s, box-shadow .25s;
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.43),
+      inset -1px -1px 0 rgba(59,191,190,.09),
+      inset 0 0 18px rgba(184,255,251,.025),
+      0 8px 22px rgba(0,0,0,.14),
+      0 1px 0 rgba(219,255,252,.13);
+  }
+  button.action::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    left: 5%; right: 24%; top: -7%; height: 55%;
+    border-radius: 999px;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(255,255,255,.52), rgba(255,255,255,.16) 25%, transparent 62%),
+      linear-gradient(180deg, rgba(255,255,255,.17), rgba(255,255,255,0));
+    transform: rotate(-5deg);
+    opacity: .86;
+    pointer-events: none;
+  }
+  button.action::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 2px;
+    border-radius: 11px;
+    border: 1px solid rgba(255,255,255,.085);
+    box-shadow:
+      inset 0 1px 5px rgba(255,255,255,.06),
+      inset 0 -5px 12px rgba(6,39,44,.08);
+    pointer-events: none;
+  }
+  button.action:hover {
+    transform: translateY(-1px) scale(1.02);
+    border-color: rgba(224,255,253,.50);
+    border-top-color: rgba(255,255,255,.72);
+    background:
+      linear-gradient(145deg, rgba(255,255,255,.10), rgba(87,255,241,.038), rgba(5,41,46,.03)),
+      rgba(103, 236, 228, .035);
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.52),
+      inset -1px -1px 0 rgba(69,205,201,.11),
+      0 10px 26px rgba(0,0,0,.16),
+      0 0 18px rgba(105,255,245,.045);
+  }
+  button.action:active {
+    transform: scale(.95);
+    background:
+      linear-gradient(145deg, rgba(255,255,255,.055), rgba(65,216,208,.027)),
+      rgba(40,145,145,.035);
+    box-shadow: inset 0 2px 8px rgba(0,0,0,.12), inset 1px 1px 0 rgba(255,255,255,.28);
+  }
+  button.action.primary {
+    background:
+      linear-gradient(145deg, rgba(231,255,253,.115), rgba(67,255,238,.048) 48%, rgba(19,115,121,.035)),
+      rgba(45, 211, 203, .035);
+    border-color: rgba(204,255,251,.46);
+    border-top-color: rgba(250,255,255,.66);
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.49),
+      inset -1px -1px 0 rgba(49,177,177,.10),
+      inset 0 0 19px rgba(124,255,245,.035),
+      0 8px 24px rgba(0,0,0,.14),
+      0 0 18px rgba(76,255,240,.05);
+  }
+  button.action svg { width: 18px; height: 18px; }
+  button.action.text { width: auto; padding: 0 13px; font-weight: 800; font-size: 12px; }
+
+  .visual-stage {
+    min-height: 500px;
+    border-radius: 23px;
+    background:
+      linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+      radial-gradient(circle at 50% 80%, rgba(52,255,234,.08), transparent 42%),
+      rgba(0,12,15,.22);
+    background-size: 28px 28px, 28px 28px, auto, auto;
+    border: 1px solid rgba(177,255,249,.08);
+    position: relative;
+    overflow: hidden;
+    padding: 25px 18px 22px;
+  }
+  .visual-stage::before {
+    content: ""; position: absolute; left: 9%; right: 9%; bottom: 18px; height: 70px;
+    background: radial-gradient(ellipse, rgba(50,255,237,.11), transparent 65%);
+    filter: blur(16px); pointer-events: none;
+  }
+  .bars {
+    height: 390px;
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    gap: clamp(4px, .7vw, 10px);
+    position: relative;
+    z-index: 2;
+  }
+  .bar-wrap {
+    flex: 1 1 0;
+    max-width: 70px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 12px;
+    transition: transform var(--motion-ms) var(--ease-ios), opacity var(--motion-ms) var(--ease-ios);
+    will-change: transform, opacity;
+    contain: layout paint style;
+    transform: translateZ(0);
+  }
+  .bar-wrap.dim { opacity: .42; }
+  .node {
+    aspect-ratio: 1/1;
+    width: min(100%, 40px);
+    margin: 0 auto;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-weight: 900;
+    font-size: clamp(9px, .85vw, 13px);
+    color: #efffff;
+    background:
+      radial-gradient(circle at 27% 17%, rgba(255,255,255,.47), rgba(255,255,255,.10) 18%, transparent 37%),
+      radial-gradient(circle at 70% 78%, rgba(47,214,209,.045), transparent 54%),
+      linear-gradient(145deg, rgba(194,255,251,.085), rgba(28,137,145,.020));
+    border: 1px solid rgba(230,255,253,.43);
+    border-top-color: rgba(255,255,255,.66);
+    border-left-color: rgba(247,255,255,.53);
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.35),
+      inset -1px -1px 0 rgba(44,159,165,.07),
+      inset 0 0 13px rgba(192,255,251,.025),
+      0 7px 18px rgba(0,0,0,.13),
+      0 1px 0 rgba(224,255,252,.12);
+    transition: transform var(--motion-ms) var(--ease-ios), background-color var(--motion-ms) ease, opacity var(--motion-ms) ease;
+    will-change: transform;
+    transform: translateZ(0);
+    position: relative;
+    overflow: hidden;
+  }
+  .node::after {
+    content:"";
+    position:absolute;
+    inset:3px;
+    border-radius:inherit;
+    border-top:1px solid rgba(255,255,255,.20);
+    border-left:1px solid rgba(255,255,255,.10);
+    pointer-events:none;
+  }
+  .bar {
+    height: 35%;
+    min-height: 10px;
+    border-radius: 14px 14px 8px 8px;
+    background:
+      linear-gradient(90deg, rgba(255,255,255,.20) 0%, rgba(255,255,255,.052) 9%, rgba(255,255,255,.008) 28%, rgba(19,123,132,.018) 60%, rgba(127,255,247,.045) 82%, rgba(255,255,255,.105) 100%),
+      linear-gradient(180deg, rgba(222,255,253,.105), rgba(70,219,213,.038) 35%, rgba(16,96,105,.018) 78%, rgba(5,48,56,.03));
+    border: 1px solid rgba(226,255,253,.44);
+    border-top-color: rgba(255,255,255,.70);
+    border-left-color: rgba(248,255,255,.52);
+    box-shadow:
+      inset 1px 0 0 rgba(255,255,255,.24),
+      inset -1px 0 0 rgba(50,171,176,.07),
+      inset 0 1px 0 rgba(255,255,255,.46),
+      inset 0 -1px 0 rgba(0,45,52,.12),
+      inset 0 0 20px rgba(167,255,249,.018),
+      0 8px 18px rgba(0,0,0,.11);
+    transform-origin: bottom;
+    transition: height var(--motion-ms) var(--ease-ios), transform var(--motion-ms) var(--ease-ios), opacity var(--motion-ms) ease;
+    will-change: height, transform;
+    transform: translateZ(0);
+    position: relative;
+    overflow: hidden;
+  }
+  .bar::before {
+    content:"";
+    position:absolute;
+    left:8%; top:2%; width:24%; height:94%;
+    border-radius:999px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.42), rgba(255,255,255,.10) 18%, rgba(255,255,255,.024) 52%, transparent 88%);
+    opacity:.84;
+    pointer-events:none;
+  }
+  .bar::after {
+    content:"";
+    position:absolute;
+    inset:0;
+    background:
+      radial-gradient(ellipse at 48% 0%, rgba(255,255,255,.26), transparent 28%),
+      linear-gradient(122deg, rgba(255,255,255,.12), transparent 25%, transparent 67%, rgba(118,255,247,.048));
+    pointer-events:none;
+  }
+  .bar-wrap.compare .bar, .bar-wrap.compare .node {
+    background:
+      radial-gradient(circle at 28% 15%, rgba(255,255,255,.42), transparent 29%),
+      linear-gradient(180deg, rgba(255,219,163,.19), rgba(181,105,38,.060));
+    border-color:rgba(255,231,193,.56);
+    border-top-color:rgba(255,248,233,.74);
+    box-shadow: inset 1px 1px 0 rgba(255,255,255,.39), 0 0 22px rgba(255,191,105,.10);
+  }
+  .bar-wrap.swap .bar, .bar-wrap.swap .node {
+    background:
+      radial-gradient(circle at 28% 15%, rgba(255,255,255,.42), transparent 29%),
+      linear-gradient(180deg, rgba(196,181,255,.21), rgba(98,74,187,.065));
+    border-color:rgba(225,216,255,.57);
+    border-top-color:rgba(249,246,255,.76);
+    transform: translateY(-5px) scale(1.035);
+  }
+  .bar-wrap.write .bar, .bar-wrap.write .node {
+    background:
+      radial-gradient(circle at 28% 15%, rgba(255,255,255,.40), transparent 29%),
+      linear-gradient(180deg, rgba(164,214,255,.20), rgba(42,99,186,.060));
+    border-color:rgba(204,232,255,.55);
+    border-top-color:rgba(245,251,255,.73);
+    transform: scale(1.03);
+  }
+  .bar-wrap.pivot .bar, .bar-wrap.pivot .node {
+    background:
+      radial-gradient(circle at 28% 15%, rgba(255,255,255,.40), transparent 29%),
+      linear-gradient(180deg, rgba(255,183,196,.20), rgba(180,58,82,.060));
+    border-color:rgba(255,213,220,.56);
+    border-top-color:rgba(255,246,248,.74);
+    box-shadow: inset 1px 1px 0 rgba(255,255,255,.37), 0 0 22px rgba(255,124,145,.09);
+  }
+  .bar-wrap.sorted .bar, .bar-wrap.sorted .node, .bar-wrap.found .bar, .bar-wrap.found .node {
+    background:
+      radial-gradient(circle at 28% 15%, rgba(255,255,255,.40), transparent 29%),
+      linear-gradient(180deg, rgba(171,255,224,.19), rgba(35,158,123,.055));
+    border-color:rgba(207,255,237,.56);
+    border-top-color:rgba(246,255,251,.74);
+    box-shadow: inset 1px 1px 0 rgba(255,255,255,.37), 0 0 22px rgba(104,255,194,.08);
+  }
+  .bar-wrap.miss .bar, .bar-wrap.miss .node { opacity: .28; }
+
+  /* Performance mode: keep the liquid-glass look while avoiding expensive GPU effects during playback. */
+  body.is-playing .glass {
+    backdrop-filter: blur(16px) saturate(125%);
+    -webkit-backdrop-filter: blur(16px) saturate(125%);
+  }
+  body.is-playing .bar,
+  body.is-playing .node { box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 5px 12px rgba(0,0,0,.16); }
+  body.is-playing .bar-wrap.compare .bar, body.is-playing .bar-wrap.compare .node,
+  body.is-playing .bar-wrap.pivot .bar, body.is-playing .bar-wrap.pivot .node,
+  body.is-playing .bar-wrap.sorted .bar, body.is-playing .bar-wrap.sorted .node { box-shadow: 0 4px 14px rgba(0,0,0,.16); }
+  body.is-playing .visual-stage::before { filter: blur(9px); opacity: .72; }
+  .bar-wrap.swap { position: relative; }
+  .index { text-align:center; color:#659395; font-size:10px; font-weight:800; will-change: transform; transform: translateZ(0); }
+
+  /* Dense layouts let the visualizer scale cleanly up to 50 elements. */
+  .bars.dense { gap: clamp(2px, .32vw, 5px); }
+  .bars.dense .bar-wrap { min-width: 7px; gap: 6px; }
+  .bars.dense .node { width:min(100%, 30px); font-size:clamp(7px,.66vw,10px); }
+  .bars.dense .index { font-size:8px; }
+  .bars.ultra-dense { gap: 2px; }
+  .bars.ultra-dense .bar-wrap { min-width: 4px; gap: 4px; }
+  .bars.ultra-dense .node { width:min(100%, 22px); font-size:7px; border-width:1px; }
+  .bars.ultra-dense .bar { border-radius:9px 9px 5px 5px; }
+  .bars.ultra-dense .bar-wrap:not(:nth-child(5n + 1)) .index { opacity:0; }
+  .bars.ultra-dense .index { font-size:7px; }
+
+  .status-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .stat {
+    padding: 12px 13px;
+    border: 1px solid rgba(177,255,249,.08);
+    border-radius: 16px;
+    background: rgba(0,14,17,.19);
+  }
+  .stat span { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; font-weight: 800; display:block; }
+  .stat strong { font-size: 15px; display:block; margin-top:4px; }
+
+  .timeline { margin-top: 13px; }
+  input[type="range"] { width: 100%; accent-color: var(--cyan-2); }
+  .timeline-head { display:flex; justify-content:space-between; align-items:center; gap:10px; color:var(--muted); font-size:11px; margin-bottom:6px; }
+  #explain { color:#c8f8f5; max-width:72%; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  .code-panel { position: sticky; top: 104px; }
+  .code-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; }
+  .code-title h2 { margin:0; font-size:16px; }
+  .code-title p { margin:4px 0 0; color:var(--muted); font-size:11px; }
+  .lang-switch { display:flex; padding:3px; gap:3px; background:linear-gradient(145deg, rgba(255,255,255,.035), rgba(0,18,21,.08)); border:1px solid rgba(214,255,252,.10); border-radius:13px; box-shadow:inset 0 1px 0 rgba(255,255,255,.05); }
+  .lang-switch button { border:0; background:transparent; color:var(--muted); border-radius:10px; padding:7px 9px; font-size:10px; font-weight:900; cursor:pointer; transition:.25s; }
+  .lang-switch button.active { color:var(--text); background:linear-gradient(145deg, rgba(238,255,254,.08), rgba(96,255,242,.022)); border:1px solid rgba(236,255,253,.14); box-shadow:inset 1px 1px 0 rgba(255,255,255,.22), inset -1px -1px 0 rgba(67,189,188,.05); }
+
+  pre {
+    margin:0;
+    max-height: 610px;
+    overflow:auto;
+    border-radius:19px;
+    border:1px solid rgba(177,255,249,.08);
+    background:rgba(0, 9, 12, .43);
+    padding:16px 15px;
+    font: 12px/1.65 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(94,213,209,.25) transparent;
+  }
+  code { color:#d7ffff; }
+  .tok-k { color:#7fd9ff; } .tok-f { color:#71ffe9; } .tok-n { color:#ffcc83; } .tok-c { color:#688e91; } .tok-s { color:#b6ef9b; }
+
+  .bottom-grid {
+    display:grid; grid-template-columns: 1.1fr .9fr; gap:16px; margin-top:16px;
+  }
+  .info-card { padding:17px 18px; }
+  .info-card h3 { margin:0 0 10px; font-size:14px; }
+  .algo-meta { display:grid; grid-template-columns: repeat(4,1fr); gap:8px; }
+  .meta-box { padding:10px; border-radius:14px; background:rgba(0,0,0,.13); border:1px solid rgba(255,255,255,.055); }
+  .meta-box small { display:block; color:var(--muted); font-size:9px; font-weight:800; text-transform:uppercase; }
+  .meta-box b { display:block; margin-top:4px; font-size:12px; color:#d8ffff; }
+  .legend { display:flex; flex-wrap:wrap; gap:8px 13px; margin-top:12px; color:var(--muted); font-size:10px; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .dot.c { background:var(--orange); }.dot.s{background:var(--purple)}.dot.p{background:var(--red)}.dot.ok{background:var(--green)}.dot.w{background:var(--blue)}.dot.e{background:var(--cyan)}
+
+  .input-line { display:grid; grid-template-columns:1fr auto; gap:8px; }
+  .range-line { display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; margin-top:12px; }
+  .duplicate-option { margin-top:12px; }
+  .duplicate-check {
+    display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:10px;
+    min-height:54px; padding:9px 11px; border-radius:16px; cursor:pointer;
+    border:1px solid rgba(177,255,249,.10); background:rgba(0,14,17,.15);
+    transition:border-color .25s ease, background .25s ease, transform .25s var(--ease-ios);
+  }
+  .duplicate-check:hover { transform:translateY(-1px); border-color:rgba(99,255,242,.24); }
+  .duplicate-check input { position:absolute; opacity:0; pointer-events:none; }
+  .check-box {
+    width:24px; height:24px; border-radius:8px; display:grid; place-items:center; flex:0 0 auto;
+    color:transparent; font-size:15px; font-weight:1000;
+    border:1px solid rgba(177,255,249,.20); border-top-color:rgba(255,255,255,.34);
+    background:rgba(255,255,255,.035); box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
+    transition:.28s var(--ease-ios);
+  }
+  .duplicate-check input:checked + .check-box {
+    color:white; transform:scale(1.04); border-color:rgba(99,255,242,.50);
+    background:linear-gradient(145deg, rgba(14,165,233,.88), rgba(139,92,246,.78));
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.48), 0 5px 14px rgba(47,179,225,.20);
+  }
+  .duplicate-copy { min-width:0; }
+  .duplicate-copy b { display:block; font-size:11px; line-height:1.25; }
+  .duplicate-copy small { display:block; margin-top:3px; color:var(--muted); font-size:9px; line-height:1.35; }
+  .duplicate-badge {
+    padding:5px 7px; border-radius:999px; font-size:8px; font-weight:900; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--muted); border:1px solid rgba(177,255,249,.10); background:rgba(255,255,255,.035);
+  }
+  .duplicate-check input:checked ~ .duplicate-badge { color:#dffffc; border-color:rgba(99,255,242,.28); background:rgba(41,217,208,.10); }
+  body.search-mode .duplicate-option { display:none; }
+  .speed { min-width:55px; text-align:right; font-size:11px; color:#c9f6f4; font-weight:800; }
+  .hint { color:var(--muted); font-size:11px; line-height:1.6; margin-top:10px; }
+
+  .search-controls { display:none; grid-template-columns:1fr 150px auto; gap:10px; align-items:end; margin-bottom:14px; }
+  body.search-mode .search-controls { display:grid; }
+  body.search-mode .sort-controls { display:none; }
+
+  .toast {
+    position:fixed; left:50%; bottom:24px; transform:translate(-50%, 30px); opacity:0;
+    padding:10px 14px; border-radius:14px; background:rgba(7,42,46,.88); border:1px solid rgba(157,255,247,.18); backdrop-filter:blur(18px); color:#eaffff; font-size:11px; font-weight:800; z-index:50;
+    transition:.35s var(--ease-ios); pointer-events:none;
+  }
+  .toast.show { opacity:1; transform:translate(-50%,0); }
+
+
+  /* =========================================================
+     LIGHT LIQUID GLASS THEME — white canvas + colorful controls
+     ========================================================= */
+  :root {
+    --bg-0: #f8fbff;
+    --bg-1: #ffffff;
+    --glass: rgba(255,255,255,.58);
+    --glass-strong: rgba(255,255,255,.76);
+    --glass-clear: rgba(255,255,255,.38);
+    --glass-edge: rgba(255,255,255,.92);
+    --border: rgba(100,116,139,.16);
+    --border-hi: rgba(255,255,255,.96);
+    --text: #172033;
+    --muted: #718096;
+    --cyan: #06b6d4;
+    --cyan-2: #0ea5e9;
+    --blue: #3b82f6;
+    --purple: #8b5cf6;
+    --orange: #f59e0b;
+    --red: #f43f5e;
+    --green: #10b981;
+    --shadow: 0 22px 65px rgba(51,65,85,.10), 0 4px 14px rgba(59,130,246,.045);
+  }
+
+  body {
+    color: var(--text);
+    background:
+      radial-gradient(circle at 15% 8%, rgba(56,189,248,.16), transparent 25%),
+      radial-gradient(circle at 88% 13%, rgba(168,85,247,.11), transparent 27%),
+      radial-gradient(circle at 77% 88%, rgba(244,114,182,.10), transparent 28%),
+      radial-gradient(circle at 20% 87%, rgba(16,185,129,.09), transparent 25%),
+      linear-gradient(145deg, #f7fbff 0%, #ffffff 46%, #f8f7ff 100%);
+  }
+  body::before { background: rgba(14,165,233,.13); }
+  body::after { background: rgba(139,92,246,.11); }
+
+  .glass {
+    background:
+      linear-gradient(145deg, rgba(255,255,255,.82), rgba(255,255,255,.50) 46%, rgba(240,248,255,.42)),
+      rgba(255,255,255,.48);
+    border-color: rgba(148,163,184,.18);
+    border-top-color: rgba(255,255,255,.98);
+    box-shadow:
+      var(--shadow),
+      inset 0 1px 0 rgba(255,255,255,1),
+      inset 0 -1px 0 rgba(148,163,184,.08);
+    backdrop-filter: blur(25px) saturate(145%);
+    -webkit-backdrop-filter: blur(25px) saturate(145%);
+  }
+  .glass::after {
+    background:
+      linear-gradient(120deg, rgba(255,255,255,.80), transparent 25%, transparent 72%, rgba(125,211,252,.10)),
+      linear-gradient(180deg, rgba(255,255,255,.34), transparent 22%);
+    opacity: .72;
+  }
+
+  header.glass {
+    background:
+      linear-gradient(145deg, rgba(255,255,255,.76), rgba(255,255,255,.38) 50%, rgba(239,246,255,.25)),
+      rgba(255,255,255,.34);
+    border-color: rgba(148,163,184,.15);
+    border-top-color: rgba(255,255,255,.98);
+    box-shadow: 0 16px 42px rgba(51,65,85,.09), inset 0 1px 0 #fff;
+  }
+  .logo {
+    background:
+      radial-gradient(circle at 28% 18%, rgba(255,255,255,.96), rgba(255,255,255,.44) 35%, transparent 60%),
+      linear-gradient(145deg, rgba(56,189,248,.22), rgba(139,92,246,.10));
+    border-color: rgba(59,130,246,.23);
+    border-top-color: rgba(255,255,255,.98);
+    box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 rgba(59,130,246,.08), 0 8px 20px rgba(59,130,246,.10);
+  }
+  .logo path { stroke:#2563eb !important; }
+  .logo circle { fill:#38bdf8 !important; }
+  .logo svg { filter: drop-shadow(0 2px 5px rgba(37,99,235,.15)); }
+
+  /* Floating menu: colorful capsule over a transparent white board. */
+  .segmented {
+    background: rgba(255,255,255,.48);
+    border-color: rgba(148,163,184,.18);
+    box-shadow: inset 0 1px 0 #fff, 0 7px 20px rgba(51,65,85,.07);
+  }
+  .menu-capsule {
+    background:
+      radial-gradient(ellipse at 22% 0%, rgba(255,255,255,.66), transparent 39%),
+      linear-gradient(145deg, rgba(59,130,246,.94), rgba(14,165,233,.80));
+    border-color: rgba(255,255,255,.92);
+    border-top-color:#fff;
+    border-left-color:#fff;
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.74),
+      inset -1px -1px 0 rgba(30,64,175,.18),
+      inset 0 -10px 18px rgba(30,64,175,.12),
+      0 12px 26px rgba(37,99,235,.22),
+      0 2px 8px rgba(59,130,246,.14);
+  }
+  body.search-mode .menu-capsule {
+    background:
+      radial-gradient(ellipse at 22% 0%, rgba(255,255,255,.66), transparent 39%),
+      linear-gradient(145deg, rgba(168,85,247,.92), rgba(236,72,153,.78));
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.72),
+      inset -1px -1px 0 rgba(107,33,168,.18),
+      0 12px 27px rgba(168,85,247,.22),
+      0 2px 8px rgba(236,72,153,.12);
+  }
+  .menu-capsule::after { border-color:rgba(255,255,255,.30); box-shadow:inset 0 -8px 18px rgba(30,64,175,.10); }
+  .segmented button { color:#64748b; }
+  .segmented button.active { color:#fff; text-shadow:0 1px 5px rgba(15,23,42,.22); }
+
+  select, input[type="text"] {
+    color:#1e293b;
+    background:rgba(255,255,255,.74);
+    border-color:rgba(148,163,184,.22);
+    box-shadow: inset 0 1px 0 #fff, 0 4px 12px rgba(51,65,85,.035);
+  }
+  select:focus, input:focus { border-color:rgba(59,130,246,.55); box-shadow:0 0 0 4px rgba(59,130,246,.10), inset 0 1px 0 #fff; }
+  select option { color:#1e293b; background:#fff; }
+
+  /* Colored liquid-glass action buttons. */
+  button.action {
+    --btn-rgb: 59,130,246;
+    --btn-ink: #1d4ed8;
+    color:var(--btn-ink);
+    border-color:rgba(var(--btn-rgb),.34);
+    border-top-color:rgba(255,255,255,.98);
+    border-left-color:rgba(255,255,255,.92);
+    background:
+      radial-gradient(ellipse at 22% 0%, rgba(255,255,255,.92), transparent 42%),
+      linear-gradient(145deg, rgba(var(--btn-rgb),.27), rgba(var(--btn-rgb),.12) 48%, rgba(255,255,255,.42)),
+      rgba(255,255,255,.54);
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.98),
+      inset -1px -1px 0 rgba(var(--btn-rgb),.12),
+      inset 0 -8px 16px rgba(var(--btn-rgb),.06),
+      0 9px 20px rgba(var(--btn-rgb),.14),
+      0 2px 6px rgba(51,65,85,.055);
+  }
+  button.action::before {
+    background:radial-gradient(ellipse at 20% 20%, rgba(255,255,255,.98), rgba(255,255,255,.50) 28%, transparent 64%);
+    opacity:.92;
+  }
+  button.action::after { border-color:rgba(255,255,255,.52); box-shadow:inset 0 1px 5px rgba(255,255,255,.52), inset 0 -5px 12px rgba(var(--btn-rgb),.06); }
+  button.action:hover {
+    border-color:rgba(var(--btn-rgb),.48);
+    border-top-color:#fff;
+    background:
+      radial-gradient(ellipse at 22% 0%, rgba(255,255,255,.98), transparent 42%),
+      linear-gradient(145deg, rgba(var(--btn-rgb),.35), rgba(var(--btn-rgb),.17) 48%, rgba(255,255,255,.48)),
+      rgba(255,255,255,.60);
+    box-shadow:
+      inset 1px 1px 0 #fff,
+      inset -1px -1px 0 rgba(var(--btn-rgb),.14),
+      0 12px 24px rgba(var(--btn-rgb),.20),
+      0 3px 8px rgba(51,65,85,.06);
+  }
+  button.action:active {
+    background:linear-gradient(145deg, rgba(var(--btn-rgb),.25), rgba(var(--btn-rgb),.12)), rgba(255,255,255,.48);
+    box-shadow:inset 0 2px 8px rgba(var(--btn-rgb),.14), inset 1px 1px 0 #fff;
+  }
+  button.action.primary {
+    background:
+      radial-gradient(ellipse at 22% 0%, rgba(255,255,255,.95), transparent 40%),
+      linear-gradient(145deg, rgba(var(--btn-rgb),.42), rgba(var(--btn-rgb),.23) 48%, rgba(255,255,255,.38));
+    border-color:rgba(var(--btn-rgb),.46);
+    border-top-color:#fff;
+    box-shadow:inset 1px 1px 0 #fff, inset -1px -1px 0 rgba(var(--btn-rgb),.16), 0 10px 24px rgba(var(--btn-rgb),.20);
+  }
+  #shuffleBtn { --btn-rgb:6,182,212; --btn-ink:#0e7490; }
+  #newArrayBtn { --btn-rgb:139,92,246; --btn-ink:#6d28d9; }
+  #prevBtn { --btn-rgb:99,102,241; --btn-ink:#4338ca; }
+  #playBtn { --btn-rgb:16,185,129; --btn-ink:#047857; }
+  #nextBtn { --btn-rgb:59,130,246; --btn-ink:#1d4ed8; }
+  #searchRunBtn { --btn-rgb:236,72,153; --btn-ink:#be185d; }
+  #applyArrayBtn { --btn-rgb:249,115,22; --btn-ink:#c2410c; }
+
+  .visual-stage {
+    background:
+      linear-gradient(rgba(100,116,139,.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(100,116,139,.055) 1px, transparent 1px),
+      radial-gradient(circle at 50% 82%, rgba(56,189,248,.13), transparent 43%),
+      rgba(255,255,255,.58);
+    border-color:rgba(148,163,184,.17);
+    box-shadow:inset 0 1px 0 #fff;
+  }
+  .visual-stage::before { background:radial-gradient(ellipse, rgba(56,189,248,.16), transparent 66%); }
+
+  .node {
+    color:#0f172a;
+    background:
+      radial-gradient(circle at 27% 17%, rgba(255,255,255,.98), rgba(255,255,255,.35) 20%, transparent 39%),
+      radial-gradient(circle at 70% 78%, rgba(56,189,248,.12), transparent 54%),
+      linear-gradient(145deg, rgba(125,211,252,.28), rgba(255,255,255,.48));
+    border-color:rgba(14,165,233,.30);
+    border-top-color:#fff;
+    border-left-color:rgba(255,255,255,.98);
+    box-shadow:inset 1px 1px 0 #fff, inset -1px -1px 0 rgba(14,165,233,.09), 0 7px 17px rgba(14,165,233,.10);
+  }
+  .bar {
+    background:
+      linear-gradient(90deg, rgba(255,255,255,.80) 0%, rgba(255,255,255,.26) 12%, rgba(56,189,248,.12) 35%, rgba(14,165,233,.20) 72%, rgba(255,255,255,.52) 100%),
+      linear-gradient(180deg, rgba(125,211,252,.36), rgba(186,230,253,.20) 48%, rgba(255,255,255,.42));
+    border-color:rgba(14,165,233,.32);
+    border-top-color:#fff;
+    border-left-color:rgba(255,255,255,.98);
+    box-shadow:inset 1px 0 0 #fff, inset -1px 0 0 rgba(14,165,233,.08), inset 0 1px 0 #fff, inset 0 -1px 0 rgba(14,165,233,.10), 0 8px 17px rgba(14,165,233,.09);
+  }
+  .bar::before { background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.40) 20%, rgba(255,255,255,.12) 54%, transparent 90%); }
+  .bar::after { background:radial-gradient(ellipse at 48% 0%, rgba(255,255,255,.92), transparent 30%), linear-gradient(122deg, rgba(255,255,255,.48), transparent 27%, transparent 68%, rgba(56,189,248,.16)); }
+
+  .bar-wrap.compare .bar, .bar-wrap.compare .node {
+    background:radial-gradient(circle at 28% 15%, rgba(255,255,255,.90), transparent 31%), linear-gradient(180deg, rgba(251,191,36,.38), rgba(255,247,237,.60));
+    border-color:rgba(245,158,11,.46); border-top-color:#fff; box-shadow:inset 1px 1px 0 #fff, 0 0 20px rgba(245,158,11,.16);
+  }
+  .bar-wrap.equal .bar, .bar-wrap.equal .node {
+    background:radial-gradient(circle at 28% 15%, rgba(255,255,255,.94), transparent 31%), linear-gradient(180deg, rgba(6,182,212,.34), rgba(240,253,250,.66));
+    border-color:rgba(6,182,212,.46); border-top-color:#fff; box-shadow:inset 1px 1px 0 #fff, 0 0 21px rgba(6,182,212,.16);
+  }
+  .bar-wrap.swap .bar, .bar-wrap.swap .node {
+    background:radial-gradient(circle at 28% 15%, rgba(255,255,255,.92), transparent 31%), linear-gradient(180deg, rgba(139,92,246,.38), rgba(245,243,255,.62));
+    border-color:rgba(139,92,246,.46); border-top-color:#fff;
+  }
+  .bar-wrap.write .bar, .bar-wrap.write .node {
+    background:radial-gradient(circle at 28% 15%, rgba(255,255,255,.92), transparent 31%), linear-gradient(180deg, rgba(59,130,246,.36), rgba(239,246,255,.64));
+    border-color:rgba(59,130,246,.44); border-top-color:#fff;
+  }
+  .bar-wrap.pivot .bar, .bar-wrap.pivot .node {
+    background:radial-gradient(circle at 28% 15%, rgba(255,255,255,.92), transparent 31%), linear-gradient(180deg, rgba(244,63,94,.34), rgba(255,241,242,.64));
+    border-color:rgba(244,63,94,.44); border-top-color:#fff; box-shadow:inset 1px 1px 0 #fff,0 0 20px rgba(244,63,94,.15);
+  }
+  .bar-wrap.sorted .bar, .bar-wrap.sorted .node, .bar-wrap.found .bar, .bar-wrap.found .node {
+    background:radial-gradient(circle at 28% 15%, rgba(255,255,255,.92), transparent 31%), linear-gradient(180deg, rgba(16,185,129,.34), rgba(236,253,245,.66));
+    border-color:rgba(16,185,129,.43); border-top-color:#fff; box-shadow:inset 1px 1px 0 #fff,0 0 19px rgba(16,185,129,.14);
+  }
+  .index { color:#94a3b8; }
+
+  body.is-playing .glass { backdrop-filter:blur(14px) saturate(120%); -webkit-backdrop-filter:blur(14px) saturate(120%); }
+  body.is-playing .bar, body.is-playing .node { box-shadow:inset 0 1px 0 #fff,0 5px 11px rgba(51,65,85,.08); }
+  body.is-playing .bar-wrap.compare .bar, body.is-playing .bar-wrap.compare .node,
+  body.is-playing .bar-wrap.pivot .bar, body.is-playing .bar-wrap.pivot .node,
+  body.is-playing .bar-wrap.sorted .bar, body.is-playing .bar-wrap.sorted .node { box-shadow:0 4px 13px rgba(51,65,85,.08); }
+
+  .stat {
+    border-color:rgba(148,163,184,.14);
+    background:rgba(255,255,255,.56);
+    box-shadow:inset 0 1px 0 #fff;
+  }
+  #explain { color:#475569; }
+  input[type="range"] { accent-color:#3b82f6; }
+  .duplicate-check {
+    border-color:rgba(148,163,184,.17);
+    background:linear-gradient(145deg, rgba(255,255,255,.72), rgba(248,250,252,.52));
+    box-shadow:inset 0 1px 0 #fff, 0 5px 14px rgba(51,65,85,.035);
+  }
+  .duplicate-check:hover { border-color:rgba(59,130,246,.28); background:rgba(255,255,255,.78); }
+  .check-box { border-color:rgba(148,163,184,.27); border-top-color:#fff; background:rgba(255,255,255,.70); box-shadow:inset 0 1px 0 #fff; }
+  .duplicate-check input:checked + .check-box {
+    color:#fff; border-color:rgba(255,255,255,.95);
+    background:radial-gradient(circle at 28% 18%, rgba(255,255,255,.65), transparent 34%), linear-gradient(145deg,#0ea5e9,#8b5cf6);
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.72), 0 7px 15px rgba(59,130,246,.18);
+  }
+  .duplicate-badge { color:#64748b; border-color:rgba(148,163,184,.18); background:rgba(255,255,255,.64); }
+  .duplicate-check input:checked ~ .duplicate-badge { color:#6d28d9; border-color:rgba(139,92,246,.22); background:rgba(139,92,246,.09); }
+
+  .lang-switch { background:rgba(248,250,252,.72); border-color:rgba(148,163,184,.16); box-shadow:inset 0 1px 0 #fff; }
+  .lang-switch button { color:#64748b; }
+  .lang-switch button.active {
+    color:#1d4ed8;
+    background:linear-gradient(145deg, rgba(96,165,250,.25), rgba(255,255,255,.72));
+    border-color:rgba(59,130,246,.24);
+    box-shadow:inset 1px 1px 0 #fff,0 4px 12px rgba(59,130,246,.08);
+  }
+
+  pre {
+    border-color:rgba(148,163,184,.16);
+    background:rgba(248,250,252,.80);
+    box-shadow:inset 0 1px 0 #fff;
+    scrollbar-color:rgba(59,130,246,.25) transparent;
+  }
+  code { color:#1e293b; }
+  .tok-k { color:#7c3aed; } .tok-f { color:#0284c7; } .tok-n { color:#ea580c; } .tok-c { color:#94a3b8; } .tok-s { color:#16a34a; }
+
+  .meta-box { background:rgba(248,250,252,.68); border-color:rgba(148,163,184,.13); box-shadow:inset 0 1px 0 #fff; }
+  .meta-box b { color:#24324a; }
+  .speed { color:#2563eb; }
+  .toast { background:rgba(255,255,255,.90); border-color:rgba(59,130,246,.18); color:#1e293b; box-shadow:0 12px 35px rgba(51,65,85,.14); }
+
+  @media (max-width: 1040px) {
+    .workspace { grid-template-columns: 1fr; }
+    .code-panel { position:relative; top:auto; }
+    .bottom-grid { grid-template-columns:1fr; }
+    header { position:relative; top:auto; }
+  }
+  @media (max-width: 720px) {
+    .app { width:min(100% - 18px, 1520px); padding-top:9px; }
+    header { padding:13px; border-radius:20px; }
+    .brand p { display:none; }
+    .workspace { margin-top:10px; gap:10px; }
+    .panel { padding:12px; border-radius:21px; }
+    .toolbar { grid-template-columns:1fr; }
+    .search-controls { grid-template-columns:1fr; }
+    .visual-stage { min-height:405px; padding:18px 8px; }
+    .bars { height:315px; gap:3px; }
+    .node { width:min(100%,29px); }
+    .status-strip { grid-template-columns:1fr 1fr; }
+    .algo-meta { grid-template-columns:1fr 1fr; }
+    .segmented button { padding:8px 10px; }
+    #explain { max-width:60%; }
+  }
+
+  /* ================================================================
+     REFRACTIVE LIQUID-GLASS MENU
+     The selected capsule behaves like a small convex glass lens:
+     it swells while moving, then settles back into the destination.
+     A clipped duplicate of the menu labels is displaced through an SVG
+     filter so details underneath look bent through curved glass.
+     ================================================================ */
+  .segmented {
+    overflow: visible;
+    transition: background .42s ease, border-color .42s ease, box-shadow .42s ease;
+  }
+  .segmented.switching {
+    background: rgba(255,255,255,.24);
+    border-color: rgba(255,255,255,.64);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.96),
+      0 10px 24px rgba(51,65,85,.055);
+  }
+  .menu-capsule {
+    z-index: 2;
+    overflow: hidden;
+    transform: translate3d(var(--capsule-x), -4px, 0) scaleX(1) scaleY(1);
+    transform-origin: 50% 58%;
+    border-radius: 16px;
+    will-change: transform, width, border-radius;
+    transition:
+      transform .74s cubic-bezier(.18,1.18,.24,1),
+      width .68s cubic-bezier(.18,.94,.20,1),
+      border-radius .46s cubic-bezier(.18,.9,.22,1),
+      box-shadow .38s ease,
+      border-color .38s ease,
+      background .38s ease,
+      backdrop-filter .38s ease;
+    backdrop-filter: blur(8px) saturate(168%) brightness(1.055) contrast(1.025);
+    -webkit-backdrop-filter: blur(8px) saturate(168%) brightness(1.055) contrast(1.025);
+  }
+  .segmented.switching .menu-capsule {
+    transform: translate3d(var(--capsule-x), -10px, 0) scaleX(1.115) scaleY(1.18);
+    border-radius: 20px 20px 23px 23px / 18px 18px 25px 25px;
+    border-color: rgba(255,255,255,.98);
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.95),
+      inset -1px -1px 0 rgba(30,64,175,.10),
+      inset 0 -13px 22px rgba(30,64,175,.10),
+      0 19px 34px rgba(37,99,235,.25),
+      0 5px 12px rgba(59,130,246,.13);
+    backdrop-filter: blur(11px) saturate(184%) brightness(1.08) contrast(1.04);
+    -webkit-backdrop-filter: blur(11px) saturate(184%) brightness(1.08) contrast(1.04);
+  }
+  body.search-mode .segmented.switching .menu-capsule {
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.94),
+      inset -1px -1px 0 rgba(107,33,168,.11),
+      inset 0 -13px 22px rgba(107,33,168,.09),
+      0 19px 34px rgba(168,85,247,.23),
+      0 5px 12px rgba(236,72,153,.12);
+  }
+  .menu-capsule::before {
+    z-index: 3;
+    transform-origin: 28% 0%;
+    transition: transform .52s cubic-bezier(.18,1.1,.26,1), opacity .36s ease;
+  }
+  .segmented.switching .menu-capsule::before {
+    transform: scaleX(1.18) scaleY(1.28) translateY(-1px);
+    opacity: .96;
+  }
+  .menu-capsule::after {
+    z-index: 4;
+    background:
+      linear-gradient(102deg, rgba(255,255,255,.48), transparent 19%, transparent 72%, rgba(255,255,255,.20)),
+      radial-gradient(ellipse at 50% 112%, rgba(255,255,255,.26), transparent 52%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.58),
+      inset 0 -8px 18px rgba(30,64,175,.09);
+  }
+
+  /* Refraction copy: stays spatially aligned with the menu while the glass
+     capsule sweeps above it. Only the portion inside the capsule is visible. */
+  .menu-refraction {
+    position: absolute;
+    z-index: 1;
+    left: 0;
+    top: -4px;
+    width: var(--menu-total-w, 220px);
+    height: var(--menu-total-h, 44px);
+    pointer-events: none;
+    transform: translate3d(calc(0px - var(--capsule-x)), 0, 0) scaleX(1.025) scaleY(1.06);
+    transform-origin: 50% 50%;
+    transition: transform .74s cubic-bezier(.18,1.18,.24,1);
+    filter: url(#menuGlassDistortion) blur(.12px);
+    opacity: .50;
+    mix-blend-mode: multiply;
+    will-change: transform;
+  }
+  .segmented.switching .menu-refraction {
+    transform: translate3d(calc(0px - var(--capsule-x)), 0, 0) scaleX(1.075) scaleY(1.13) skewX(-1.4deg);
+    opacity: .62;
+  }
+  .menu-refraction-label {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    color: rgba(15,23,42,.58);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .005em;
+    text-shadow:
+      1px 0 rgba(255,255,255,.18),
+      -1px 0 rgba(37,99,235,.09);
+    transform: translateX(.8px) scaleX(1.035);
+  }
+  body.search-mode .menu-refraction-label {
+    color: rgba(76,29,149,.52);
+  }
+
+  /* Buttons sit below the lens while it is travelling. The destination label
+     fades back to crisp only as the lens starts settling. */
+  .segmented button { z-index: 1; }
+  .segmented button.active { z-index: 3; }
+  .segmented.switching button.active {
+    opacity: .18;
+    transform: translateY(-6px) scale(1.025);
+    transition: opacity .20s ease, transform .48s cubic-bezier(.16,1.08,.28,1), color .35s ease;
+  }
+  .segmented.reveal-active button.active {
+    opacity: 1;
+  }
+
+  /* Thin moving caustic makes the capsule feel thicker at its edges. */
+  .menu-caustic {
+    position: absolute;
+    z-index: 5;
+    inset: -18% -38%;
+    pointer-events: none;
+    background: linear-gradient(106deg, transparent 35%, rgba(255,255,255,.34) 46%, rgba(255,255,255,.08) 53%, transparent 64%);
+    transform: translateX(-36%) rotate(-4deg);
+    opacity: .42;
+    mix-blend-mode: screen;
+  }
+  .segmented.switching .menu-caustic {
+    animation: menuCausticSweep .72s cubic-bezier(.18,.84,.25,1) both;
+  }
+  @keyframes menuCausticSweep {
+    0% { transform: translateX(-48%) rotate(-4deg); opacity: .16; }
+    42% { opacity: .72; }
+    100% { transform: translateX(48%) rotate(-4deg); opacity: .22; }
+  }
+
+
+  /* ================================================================
+     UNIFORM SWELLING GLASS SELECTORS
+     The active lens owns its text. The original active button label is
+     transparent, so no dark glyph can show through the glass.
+     ================================================================ */
+  .floating-active-label {
+    position:absolute;
+    z-index:8;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0 10px;
+    color:#fff;
+    font:800 12px/1 system-ui,-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;
+    white-space:nowrap;
+    text-shadow:0 1px 5px rgba(15,23,42,.20);
+    pointer-events:none;
+    opacity:1;
+    transform:translateZ(0) scale(1);
+    transition:opacity .16s ease, transform .34s cubic-bezier(.16,1,.3,1);
+  }
+
+  /* Remove the old duplicate black-label refraction layer. Real backdrop
+     refraction stays on the glass itself, but text behind is never duplicated. */
+  .menu-refraction { display:none !important; }
+
+  .segmented .menu-capsule {
+    transform-origin:50% 50% !important;
+    /* A slightly denser tint prevents dark text/background details bleeding
+       through while preserving the bright transparent-glass edge. */
+    background:
+      radial-gradient(ellipse at 22% 2%, rgba(255,255,255,.74), transparent 35%),
+      linear-gradient(145deg, rgba(59,130,246,.72), rgba(37,99,235,.60) 55%, rgba(29,78,216,.67)),
+      rgba(37,99,235,.58) !important;
+    border-color:rgba(255,255,255,.88) !important;
+    border-top-color:#fff !important;
+    border-left-color:rgba(255,255,255,.96) !important;
+    backdrop-filter:blur(15px) saturate(188%) brightness(1.08) !important;
+    -webkit-backdrop-filter:blur(15px) saturate(188%) brightness(1.08) !important;
+  }
+  body.search-mode .segmented .menu-capsule {
+    background:
+      radial-gradient(ellipse at 22% 2%, rgba(255,255,255,.72), transparent 35%),
+      linear-gradient(145deg, rgba(168,85,247,.70), rgba(139,92,246,.61) 52%, rgba(236,72,153,.62)),
+      rgba(139,92,246,.58) !important;
+  }
+  .segmented.switching .menu-capsule {
+    /* Equal expansion on all four sides: same center origin, symmetric X/Y scale. */
+    transform:translate3d(var(--capsule-x), -4px, 0) scaleX(1.16) scaleY(1.16) !important;
+    border-radius:20px !important;
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.98),
+      inset -1px -1px 0 rgba(30,64,175,.10),
+      inset 0 -12px 24px rgba(30,64,175,.10),
+      0 18px 35px rgba(37,99,235,.22),
+      0 5px 14px rgba(59,130,246,.11) !important;
+  }
+  body.search-mode .segmented.switching .menu-capsule {
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.98),
+      inset -1px -1px 0 rgba(107,33,168,.10),
+      inset 0 -12px 24px rgba(107,33,168,.09),
+      0 18px 35px rgba(168,85,247,.20),
+      0 5px 14px rgba(236,72,153,.10) !important;
+  }
+  .segmented button.active {
+    color:transparent !important;
+    text-shadow:none !important;
+  }
+  .segmented.switching button {
+    color:transparent !important;
+    text-shadow:none !important;
+    opacity:0 !important;
+  }
+  .segmented.reveal-active button.active { opacity:0 !important; }
+  .segmented.switching .floating-active-label {
+    transform:translateZ(0) scale(.965);
+  }
+
+  /* Programming-language selector gets the exact same floating glass behavior. */
+  .lang-switch {
+    --lang-x:3px;
+    --lang-w:42px;
+    position:relative;
+    isolation:isolate;
+    overflow:visible;
+    padding:4px !important;
+    gap:3px !important;
+    border-radius:16px !important;
+    background:rgba(248,250,252,.58) !important;
+    border:1px solid rgba(148,163,184,.16) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.98),0 6px 18px rgba(51,65,85,.04) !important;
+    backdrop-filter:blur(12px) saturate(145%);
+    -webkit-backdrop-filter:blur(12px) saturate(145%);
+  }
+  .lang-capsule {
+    position:absolute;
+    z-index:4;
+    left:0;
+    top:4px;
+    width:var(--lang-w);
+    height:calc(100% - 8px);
+    border-radius:12px;
+    overflow:hidden;
+    pointer-events:none;
+    transform:translate3d(var(--lang-x), -3px, 0) scale(1);
+    transform-origin:50% 50%;
+    will-change:transform,width,border-radius;
+    transition:
+      transform .68s cubic-bezier(.18,1.16,.24,1),
+      width .62s cubic-bezier(.18,.94,.20,1),
+      border-radius .42s cubic-bezier(.18,.9,.22,1),
+      box-shadow .34s ease,
+      background .34s ease;
+    background:
+      radial-gradient(ellipse at 22% 2%, rgba(255,255,255,.78), transparent 36%),
+      linear-gradient(145deg, rgba(14,165,233,.70), rgba(59,130,246,.63) 55%, rgba(99,102,241,.68)),
+      rgba(59,130,246,.60);
+    border:1px solid rgba(255,255,255,.90);
+    border-top-color:#fff;
+    border-left-color:rgba(255,255,255,.98);
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.92),
+      inset -1px -1px 0 rgba(30,64,175,.11),
+      inset 0 -8px 18px rgba(30,64,175,.08),
+      0 8px 19px rgba(37,99,235,.14);
+    backdrop-filter:blur(14px) saturate(185%) brightness(1.07);
+    -webkit-backdrop-filter:blur(14px) saturate(185%) brightness(1.07);
+  }
+  .lang-capsule .floating-active-label { font-size:10px; padding:0 8px; }
+  .lang-capsule::before {
+    content:"";
+    position:absolute;
+    z-index:5;
+    left:7%; right:28%; top:1px;
+    height:43%;
+    border-radius:999px;
+    background:radial-gradient(ellipse at 25% 0%, rgba(255,255,255,.72), rgba(255,255,255,.18) 38%, transparent 74%);
+    pointer-events:none;
+  }
+  .lang-capsule::after {
+    content:"";
+    position:absolute;
+    z-index:6;
+    inset:2px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,.22);
+    box-shadow:inset 0 -7px 16px rgba(30,64,175,.08);
+    pointer-events:none;
+  }
+  .lang-switch.switching .lang-capsule {
+    transform:translate3d(var(--lang-x), -3px, 0) scaleX(1.16) scaleY(1.16);
+    border-radius:16px;
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.98),
+      inset -1px -1px 0 rgba(30,64,175,.10),
+      inset 0 -12px 22px rgba(30,64,175,.09),
+      0 17px 31px rgba(37,99,235,.20),
+      0 4px 12px rgba(59,130,246,.10);
+  }
+  .lang-switch button {
+    position:relative;
+    z-index:2;
+    min-width:40px;
+    border:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+    transition:color .28s ease,opacity .24s ease,transform .48s cubic-bezier(.16,1.08,.28,1) !important;
+  }
+  .lang-switch button.active {
+    color:transparent !important;
+    background:transparent !important;
+    border-color:transparent !important;
+    box-shadow:none !important;
+    text-shadow:none !important;
+  }
+  .lang-switch.switching button {
+    color:transparent !important;
+    opacity:0 !important;
+    text-shadow:none !important;
+  }
+  .lang-switch.switching .floating-active-label { transform:translateZ(0) scale(.965); }
+  .lang-caustic {
+    position:absolute;
+    z-index:7;
+    inset:-20% -45%;
+    pointer-events:none;
+    background:linear-gradient(106deg,transparent 35%,rgba(255,255,255,.48) 46%,rgba(255,255,255,.10) 53%,transparent 64%);
+    transform:translateX(-38%) rotate(-4deg);
+    opacity:.34;
+    mix-blend-mode:screen;
+  }
+  .lang-switch.switching .lang-caustic { animation:menuCausticSweep .68s cubic-bezier(.18,.84,.25,1) both; }
+
+
+  /* ================================================================
+     EXTRA-CLEAR MENU GLASS
+     Keep the floating selectors colorful, but let much more of the light
+     background pass through them. Active text lives on the lens itself,
+     so increased transparency never reveals a dark duplicate underneath.
+     ================================================================ */
+  .segmented {
+    background:rgba(255,255,255,.14) !important;
+    border-color:rgba(255,255,255,.50) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.90),
+      inset 0 -1px 0 rgba(148,163,184,.07),
+      0 7px 19px rgba(51,65,85,.045) !important;
+    backdrop-filter:blur(18px) saturate(142%) brightness(1.03);
+    -webkit-backdrop-filter:blur(18px) saturate(142%) brightness(1.03);
+  }
+  .segmented.switching {
+    background:rgba(255,255,255,.10) !important;
+    border-color:rgba(255,255,255,.62) !important;
+  }
+  .segmented .menu-capsule {
+    background:
+      radial-gradient(ellipse at 23% 0%, rgba(255,255,255,.60), rgba(255,255,255,.16) 30%, transparent 55%),
+      linear-gradient(145deg, rgba(96,165,250,.30), rgba(59,130,246,.20) 54%, rgba(14,165,233,.16)),
+      rgba(255,255,255,.075) !important;
+    border-color:rgba(255,255,255,.78) !important;
+    border-top-color:rgba(255,255,255,.98) !important;
+    border-left-color:rgba(255,255,255,.92) !important;
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.92),
+      inset -1px -1px 0 rgba(37,99,235,.055),
+      inset 0 -10px 22px rgba(37,99,235,.055),
+      0 11px 28px rgba(37,99,235,.115),
+      0 2px 8px rgba(59,130,246,.07) !important;
+    backdrop-filter:blur(22px) saturate(170%) brightness(1.10) contrast(1.015) !important;
+    -webkit-backdrop-filter:blur(22px) saturate(170%) brightness(1.10) contrast(1.015) !important;
+  }
+  body.search-mode .segmented .menu-capsule {
+    background:
+      radial-gradient(ellipse at 23% 0%, rgba(255,255,255,.58), rgba(255,255,255,.15) 30%, transparent 55%),
+      linear-gradient(145deg, rgba(192,132,252,.28), rgba(139,92,246,.19) 52%, rgba(244,114,182,.17)),
+      rgba(255,255,255,.075) !important;
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.92),
+      inset -1px -1px 0 rgba(126,34,206,.05),
+      inset 0 -10px 22px rgba(126,34,206,.05),
+      0 11px 28px rgba(168,85,247,.11),
+      0 2px 8px rgba(236,72,153,.065) !important;
+  }
+  .segmented.switching .menu-capsule {
+    background:
+      radial-gradient(ellipse at 23% 0%, rgba(255,255,255,.67), rgba(255,255,255,.19) 30%, transparent 56%),
+      linear-gradient(145deg, rgba(96,165,250,.34), rgba(59,130,246,.22) 54%, rgba(14,165,233,.18)),
+      rgba(255,255,255,.085) !important;
+  }
+  body.search-mode .segmented.switching .menu-capsule {
+    background:
+      radial-gradient(ellipse at 23% 0%, rgba(255,255,255,.65), rgba(255,255,255,.18) 30%, transparent 56%),
+      linear-gradient(145deg, rgba(192,132,252,.32), rgba(139,92,246,.21) 52%, rgba(244,114,182,.19)),
+      rgba(255,255,255,.085) !important;
+  }
+
+  .lang-switch {
+    background:rgba(255,255,255,.12) !important;
+    border-color:rgba(255,255,255,.48) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.90),
+      inset 0 -1px 0 rgba(148,163,184,.06),
+      0 6px 17px rgba(51,65,85,.035) !important;
+    backdrop-filter:blur(17px) saturate(140%) brightness(1.03);
+    -webkit-backdrop-filter:blur(17px) saturate(140%) brightness(1.03);
+  }
+  .lang-capsule {
+    background:
+      radial-gradient(ellipse at 23% 0%, rgba(255,255,255,.62), rgba(255,255,255,.15) 31%, transparent 56%),
+      linear-gradient(145deg, rgba(56,189,248,.28), rgba(59,130,246,.18) 54%, rgba(129,140,248,.17)),
+      rgba(255,255,255,.07) !important;
+    border-color:rgba(255,255,255,.80) !important;
+    border-top-color:rgba(255,255,255,.99) !important;
+    border-left-color:rgba(255,255,255,.94) !important;
+    box-shadow:
+      inset 1px 1px 0 rgba(255,255,255,.94),
+      inset -1px -1px 0 rgba(37,99,235,.05),
+      inset 0 -8px 18px rgba(37,99,235,.05),
+      0 9px 22px rgba(37,99,235,.10) !important;
+    backdrop-filter:blur(21px) saturate(168%) brightness(1.10) contrast(1.012) !important;
+    -webkit-backdrop-filter:blur(21px) saturate(168%) brightness(1.10) contrast(1.012) !important;
+  }
+  .lang-switch.switching .lang-capsule {
+    background:
+      radial-gradient(ellipse at 23% 0%, rgba(255,255,255,.69), rgba(255,255,255,.18) 31%, transparent 56%),
+      linear-gradient(145deg, rgba(56,189,248,.32), rgba(59,130,246,.21) 54%, rgba(129,140,248,.19)),
+      rgba(255,255,255,.08) !important;
+  }
+
+  /* Bright edge/specular reflection reads as glass even with the lower fill. */
+  .segmented .menu-capsule::after,
+  .lang-capsule::after {
+    border-color:rgba(255,255,255,.34) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.58),
+      inset 0 -7px 17px rgba(37,99,235,.035) !important;
+  }
+
+
+  /* ================================================================
+     3-WAY THEME SLIDER — Light / System / Dark
+     The selector uses the same floating, extra-clear glass language as
+     Sort/Search and C++/Java/C#. Dark mode mirrors the same transparency
+     ratios rather than simply inverting colors.
+     ================================================================ */
+  .header-controls {
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:10px;
+    min-width:0;
+    flex-wrap:wrap;
+  }
+  .theme-switch {
+    --theme-x:4px;
+    --theme-w:70px;
+    position:relative;
+    isolation:isolate;
+    display:flex;
+    gap:3px;
+    padding:4px;
+    border-radius:18px;
+    background:rgba(255,255,255,.13);
+    border:1px solid rgba(255,255,255,.52);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.92),0 7px 19px rgba(51,65,85,.045);
+    backdrop-filter:blur(18px) saturate(145%) brightness(1.03);
+    -webkit-backdrop-filter:blur(18px) saturate(145%) brightness(1.03);
+    transition:background .42s ease,border-color .42s ease,box-shadow .42s ease;
+  }
+  .theme-capsule {
+    position:absolute;
+    z-index:4;
+    left:0;
+    top:4px;
+    width:var(--theme-w);
+    height:calc(100% - 8px);
+    border-radius:14px;
+    overflow:hidden;
+    pointer-events:none;
+    transform:translate3d(var(--theme-x),-3px,0) scale(1);
+    transform-origin:50% 50%;
+    will-change:transform,width,border-radius;
+    transition:transform .68s cubic-bezier(.18,1.16,.24,1),width .62s cubic-bezier(.18,.94,.20,1),border-radius .42s cubic-bezier(.18,.9,.22,1),background .42s ease,box-shadow .38s ease,border-color .38s ease;
+    background:radial-gradient(ellipse at 23% 0%,rgba(255,255,255,.64),rgba(255,255,255,.17) 30%,transparent 56%),linear-gradient(145deg,rgba(56,189,248,.29),rgba(59,130,246,.19) 54%,rgba(129,140,248,.17)),rgba(255,255,255,.075);
+    border:1px solid rgba(255,255,255,.82);
+    border-top-color:rgba(255,255,255,.99);
+    border-left-color:rgba(255,255,255,.95);
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.95),inset -1px -1px 0 rgba(37,99,235,.05),inset 0 -8px 18px rgba(37,99,235,.05),0 9px 22px rgba(37,99,235,.10);
+    backdrop-filter:blur(21px) saturate(170%) brightness(1.10) contrast(1.012);
+    -webkit-backdrop-filter:blur(21px) saturate(170%) brightness(1.10) contrast(1.012);
+  }
+  body[data-theme-choice="light"] .theme-capsule {
+    background:radial-gradient(ellipse at 23% 0%,rgba(255,255,255,.72),rgba(255,255,255,.20) 31%,transparent 56%),linear-gradient(145deg,rgba(250,204,21,.27),rgba(251,146,60,.17) 55%,rgba(56,189,248,.14)),rgba(255,255,255,.085);
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.98),inset -1px -1px 0 rgba(234,88,12,.045),0 9px 23px rgba(245,158,11,.10);
+  }
+  body[data-theme-choice="dark"] .theme-capsule {
+    background:radial-gradient(ellipse at 23% 0%,rgba(255,255,255,.58),rgba(255,255,255,.14) 31%,transparent 56%),linear-gradient(145deg,rgba(129,140,248,.28),rgba(99,102,241,.19) 54%,rgba(168,85,247,.17)),rgba(255,255,255,.065);
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.88),inset -1px -1px 0 rgba(91,33,182,.05),0 9px 23px rgba(99,102,241,.11);
+  }
+  .theme-switch.switching .theme-capsule {
+    transform:translate3d(var(--theme-x),-3px,0) scaleX(1.13) scaleY(1.13);
+    border-radius:18px;
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.98),inset -1px -1px 0 rgba(37,99,235,.06),0 16px 31px rgba(59,130,246,.15),0 4px 12px rgba(51,65,85,.06);
+  }
+  .theme-switch button {
+    position:relative;
+    z-index:2;
+    min-width:62px;
+    min-height:36px;
+    padding:0 9px;
+    border:0;
+    border-radius:12px;
+    background:transparent;
+    color:#64748b;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    font-size:10px;
+    font-weight:850;
+    cursor:pointer;
+    transition:color .28s ease,opacity .24s ease,transform .48s cubic-bezier(.16,1.08,.28,1);
+  }
+  .theme-switch button > span:first-child { font-size:12px; line-height:1; }
+  .theme-switch button.active { color:transparent; text-shadow:none; }
+  .theme-switch.switching button.active { color:transparent; opacity:0; }
+  .theme-capsule .floating-active-label { font-size:10px; padding:0 8px; }
+  .theme-caustic {
+    position:absolute;
+    z-index:7;
+    inset:-20% -45%;
+    pointer-events:none;
+    background:linear-gradient(106deg,transparent 35%,rgba(255,255,255,.52) 46%,rgba(255,255,255,.12) 53%,transparent 64%);
+    transform:translateX(-38%) rotate(-4deg);
+    opacity:.30;
+    mix-blend-mode:screen;
+  }
+  .theme-switch.switching .theme-caustic { animation:menuCausticSweep .68s cubic-bezier(.18,.84,.25,1) both; }
+
+  body,
+  body .glass,
+  body .visual-stage,
+  body button.action,
+  body select,
+  body input,
+  body pre,
+  body .stat,
+  body .meta-box,
+  body .duplicate-check,
+  body .segmented,
+  body .lang-switch,
+  body .theme-switch {
+    transition-property:background,background-color,border-color,color,box-shadow,filter;
+    transition-duration:.48s;
+    transition-timing-function:cubic-bezier(.22,.9,.25,1);
+  }
+  body.theme-changing .app { animation:themeGlassSettle .52s cubic-bezier(.22,.9,.25,1); }
+  @keyframes themeGlassSettle {
+    0% { opacity:.965; filter:saturate(.94); }
+    55% { opacity:.995; filter:saturate(1.035); }
+    100% { opacity:1; filter:none; }
+  }
+
+  body[data-theme-resolved="light"] { color-scheme:light; }
+  body[data-theme-resolved="dark"] {
+    color-scheme:dark;
+    --bg-0:#020b10;
+    --bg-1:#07171d;
+    --glass:rgba(7,31,39,.44);
+    --glass-strong:rgba(8,43,52,.56);
+    --glass-clear:rgba(156,236,255,.045);
+    --glass-edge:rgba(226,249,255,.28);
+    --border:rgba(166,222,234,.13);
+    --border-hi:rgba(235,252,255,.29);
+    --text:#edfaff;
+    --muted:#8ba9b4;
+    --cyan:#58e7f2;
+    --cyan-2:#38bdf8;
+    --blue:#70a5ff;
+    --purple:#b59cff;
+    --orange:#ffc36b;
+    --red:#ff879d;
+    --green:#6df0bb;
+    --shadow:0 24px 74px rgba(0,0,0,.34),0 4px 16px rgba(2,8,23,.25);
+    background:radial-gradient(circle at 15% 8%,rgba(14,165,233,.14),transparent 26%),radial-gradient(circle at 88% 13%,rgba(139,92,246,.12),transparent 28%),radial-gradient(circle at 78% 88%,rgba(236,72,153,.075),transparent 27%),radial-gradient(circle at 20% 87%,rgba(16,185,129,.07),transparent 25%),linear-gradient(145deg,#02080d 0%,#06151b 47%,#080d1b 100%);
+  }
+  body[data-theme-resolved="dark"]::before { background:rgba(14,165,233,.10); }
+  body[data-theme-resolved="dark"]::after { background:rgba(139,92,246,.09); }
+  body[data-theme-resolved="dark"] .glass {
+    background:linear-gradient(145deg,rgba(134,225,240,.055),rgba(4,25,32,.23) 47%,rgba(2,15,23,.20)),rgba(5,26,34,.23);
+    border-color:rgba(165,222,235,.13);
+    border-top-color:rgba(239,253,255,.25);
+    box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.10),inset 0 -1px 0 rgba(30,98,112,.12);
+    backdrop-filter:blur(26px) saturate(145%);
+    -webkit-backdrop-filter:blur(26px) saturate(145%);
+  }
+  body[data-theme-resolved="dark"] .glass::after { background:linear-gradient(120deg,rgba(255,255,255,.10),transparent 24%,transparent 72%,rgba(83,212,240,.035)),linear-gradient(180deg,rgba(255,255,255,.032),transparent 22%); opacity:.62; }
+  body[data-theme-resolved="dark"] header.glass {
+    background:linear-gradient(145deg,rgba(223,250,255,.045),rgba(12,56,67,.025) 48%,rgba(0,12,18,.022)),rgba(3,23,30,.10);
+    border-color:rgba(205,242,250,.11);
+    border-top-color:rgba(250,255,255,.21);
+    box-shadow:0 16px 46px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  body[data-theme-resolved="dark"] .logo {
+    background:radial-gradient(circle at 28% 18%,rgba(255,255,255,.18),rgba(255,255,255,.035) 35%,transparent 60%),linear-gradient(145deg,rgba(56,189,248,.10),rgba(139,92,246,.045));
+    border-color:rgba(125,211,252,.19); border-top-color:rgba(255,255,255,.27);
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.14),inset -1px -1px 0 rgba(59,130,246,.04),0 8px 20px rgba(0,0,0,.16);
+  }
+  body[data-theme-resolved="dark"] .logo path { stroke:#73e9f5 !important; }
+  body[data-theme-resolved="dark"] .logo circle { fill:#dffcff !important; }
+
+  body[data-theme-resolved="dark"] select,
+  body[data-theme-resolved="dark"] input[type="text"] {
+    color:#edfaff;
+    background:rgba(1,12,18,.36);
+    border-color:rgba(166,222,234,.14);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 4px 12px rgba(0,0,0,.08);
+  }
+  body[data-theme-resolved="dark"] select:focus,
+  body[data-theme-resolved="dark"] input:focus { border-color:rgba(88,231,242,.48); box-shadow:0 0 0 4px rgba(88,231,242,.07),inset 0 1px 0 rgba(255,255,255,.07); }
+  body[data-theme-resolved="dark"] select option { color:#edfaff; background:#071b23; }
+
+  body[data-theme-resolved="dark"] button.action {
+    color:rgb(var(--btn-rgb));
+    border-color:rgba(var(--btn-rgb),.27);
+    border-top-color:rgba(255,255,255,.30);
+    border-left-color:rgba(255,255,255,.20);
+    background:radial-gradient(ellipse at 22% 0%,rgba(255,255,255,.20),transparent 42%),linear-gradient(145deg,rgba(var(--btn-rgb),.13),rgba(var(--btn-rgb),.055) 48%,rgba(255,255,255,.025)),rgba(1,15,22,.20);
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.16),inset -1px -1px 0 rgba(var(--btn-rgb),.055),inset 0 -8px 16px rgba(var(--btn-rgb),.035),0 9px 20px rgba(0,0,0,.14);
+  }
+  body[data-theme-resolved="dark"] button.action::before { background:radial-gradient(ellipse at 20% 20%,rgba(255,255,255,.30),rgba(255,255,255,.09) 28%,transparent 64%); opacity:.80; }
+  body[data-theme-resolved="dark"] button.action::after { border-color:rgba(255,255,255,.08); box-shadow:inset 0 1px 5px rgba(255,255,255,.05),inset 0 -5px 12px rgba(var(--btn-rgb),.035); }
+  body[data-theme-resolved="dark"] button.action:hover { color:#f3fdff; border-color:rgba(var(--btn-rgb),.38); background:radial-gradient(ellipse at 22% 0%,rgba(255,255,255,.26),transparent 42%),linear-gradient(145deg,rgba(var(--btn-rgb),.18),rgba(var(--btn-rgb),.075) 48%,rgba(255,255,255,.03)),rgba(2,19,26,.23); box-shadow:inset 1px 1px 0 rgba(255,255,255,.21),0 12px 25px rgba(0,0,0,.17); }
+  body[data-theme-resolved="dark"] button.action.primary { color:#f5ffff; background:radial-gradient(ellipse at 22% 0%,rgba(255,255,255,.27),transparent 40%),linear-gradient(145deg,rgba(var(--btn-rgb),.23),rgba(var(--btn-rgb),.10) 48%,rgba(255,255,255,.025)); border-color:rgba(var(--btn-rgb),.38); }
+
+  body[data-theme-resolved="dark"] .visual-stage {
+    background:linear-gradient(rgba(226,249,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(226,249,255,.025) 1px,transparent 1px),radial-gradient(circle at 50% 82%,rgba(56,189,248,.09),transparent 43%),rgba(0,9,14,.27);
+    border-color:rgba(166,222,234,.09);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+  }
+  body[data-theme-resolved="dark"] .visual-stage::before { background:radial-gradient(ellipse,rgba(56,189,248,.10),transparent 66%); }
+  body[data-theme-resolved="dark"] .node {
+    color:#effdff;
+    background:radial-gradient(circle at 27% 17%,rgba(255,255,255,.37),rgba(255,255,255,.075) 20%,transparent 39%),radial-gradient(circle at 70% 78%,rgba(56,189,248,.045),transparent 54%),linear-gradient(145deg,rgba(125,211,252,.085),rgba(255,255,255,.025));
+    border-color:rgba(168,229,241,.29); border-top-color:rgba(255,255,255,.48); border-left-color:rgba(255,255,255,.38);
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.26),inset -1px -1px 0 rgba(14,165,233,.045),0 7px 17px rgba(0,0,0,.14);
+  }
+  body[data-theme-resolved="dark"] .bar {
+    background:linear-gradient(90deg,rgba(255,255,255,.16) 0%,rgba(255,255,255,.04) 12%,rgba(56,189,248,.025) 35%,rgba(14,165,233,.055) 72%,rgba(255,255,255,.095) 100%),linear-gradient(180deg,rgba(125,211,252,.09),rgba(186,230,253,.035) 48%,rgba(255,255,255,.018));
+    border-color:rgba(168,229,241,.30); border-top-color:rgba(255,255,255,.53); border-left-color:rgba(255,255,255,.40);
+    box-shadow:inset 1px 0 0 rgba(255,255,255,.20),inset -1px 0 0 rgba(14,165,233,.045),inset 0 1px 0 rgba(255,255,255,.27),inset 0 -1px 0 rgba(0,0,0,.10),0 8px 17px rgba(0,0,0,.13);
+  }
+  body[data-theme-resolved="dark"] .bar::before { background:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,.08) 20%,rgba(255,255,255,.02) 54%,transparent 90%); }
+  body[data-theme-resolved="dark"] .bar::after { background:radial-gradient(ellipse at 48% 0%,rgba(255,255,255,.25),transparent 30%),linear-gradient(122deg,rgba(255,255,255,.095),transparent 27%,transparent 68%,rgba(56,189,248,.04)); }
+  body[data-theme-resolved="dark"] .index { color:#688692; }
+  body[data-theme-resolved="dark"] .bar-wrap.compare .bar,body[data-theme-resolved="dark"] .bar-wrap.compare .node { background:radial-gradient(circle at 28% 15%,rgba(255,255,255,.28),transparent 31%),linear-gradient(180deg,rgba(251,191,36,.16),rgba(120,70,20,.035)); border-color:rgba(245,158,11,.42); border-top-color:rgba(255,255,255,.45); }
+  body[data-theme-resolved="dark"] .bar-wrap.equal .bar,body[data-theme-resolved="dark"] .bar-wrap.equal .node { background:radial-gradient(circle at 28% 15%,rgba(255,255,255,.29),transparent 31%),linear-gradient(180deg,rgba(6,182,212,.16),rgba(5,90,104,.035)); border-color:rgba(6,182,212,.42); border-top-color:rgba(255,255,255,.45); }
+  body[data-theme-resolved="dark"] .bar-wrap.swap .bar,body[data-theme-resolved="dark"] .bar-wrap.swap .node { background:radial-gradient(circle at 28% 15%,rgba(255,255,255,.28),transparent 31%),linear-gradient(180deg,rgba(139,92,246,.17),rgba(72,49,140,.04)); border-color:rgba(139,92,246,.43); border-top-color:rgba(255,255,255,.45); }
+  body[data-theme-resolved="dark"] .bar-wrap.write .bar,body[data-theme-resolved="dark"] .bar-wrap.write .node { background:radial-gradient(circle at 28% 15%,rgba(255,255,255,.28),transparent 31%),linear-gradient(180deg,rgba(59,130,246,.16),rgba(27,66,124,.04)); border-color:rgba(59,130,246,.43); border-top-color:rgba(255,255,255,.45); }
+  body[data-theme-resolved="dark"] .bar-wrap.pivot .bar,body[data-theme-resolved="dark"] .bar-wrap.pivot .node { background:radial-gradient(circle at 28% 15%,rgba(255,255,255,.28),transparent 31%),linear-gradient(180deg,rgba(244,63,94,.16),rgba(122,28,48,.04)); border-color:rgba(244,63,94,.43); border-top-color:rgba(255,255,255,.45); }
+  body[data-theme-resolved="dark"] .bar-wrap.sorted .bar,body[data-theme-resolved="dark"] .bar-wrap.sorted .node,body[data-theme-resolved="dark"] .bar-wrap.found .bar,body[data-theme-resolved="dark"] .bar-wrap.found .node { background:radial-gradient(circle at 28% 15%,rgba(255,255,255,.28),transparent 31%),linear-gradient(180deg,rgba(16,185,129,.16),rgba(21,98,75,.04)); border-color:rgba(16,185,129,.42); border-top-color:rgba(255,255,255,.45); }
+
+  body[data-theme-resolved="dark"] .stat,
+  body[data-theme-resolved="dark"] .meta-box { background:rgba(3,19,26,.28); border-color:rgba(166,222,234,.095); box-shadow:inset 0 1px 0 rgba(255,255,255,.045); }
+  body[data-theme-resolved="dark"] .meta-box b { color:#e5f8fd; }
+  body[data-theme-resolved="dark"] #explain { color:#9ab5bf; }
+  body[data-theme-resolved="dark"] .speed { color:#67dce8; }
+  body[data-theme-resolved="dark"] input[type="range"] { accent-color:#38bdf8; }
+  body[data-theme-resolved="dark"] .duplicate-check { border-color:rgba(166,222,234,.11); background:linear-gradient(145deg,rgba(12,42,51,.27),rgba(3,21,29,.24)); box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 5px 14px rgba(0,0,0,.08); }
+  body[data-theme-resolved="dark"] .duplicate-check:hover { border-color:rgba(88,231,242,.23); background:rgba(8,36,45,.31); }
+  body[data-theme-resolved="dark"] .check-box { border-color:rgba(166,222,234,.20); border-top-color:rgba(255,255,255,.25); background:rgba(255,255,255,.035); box-shadow:inset 0 1px 0 rgba(255,255,255,.08); }
+  body[data-theme-resolved="dark"] .duplicate-badge { color:#89aab5; border-color:rgba(166,222,234,.10); background:rgba(255,255,255,.03); }
+  body[data-theme-resolved="dark"] .duplicate-check input:checked ~ .duplicate-badge { color:#cdbdff; border-color:rgba(181,156,255,.24); background:rgba(139,92,246,.08); }
+
+  body[data-theme-resolved="dark"] pre { border-color:rgba(166,222,234,.10); background:rgba(1,12,18,.42); box-shadow:inset 0 1px 0 rgba(255,255,255,.045); scrollbar-color:rgba(88,231,242,.18) transparent; }
+  body[data-theme-resolved="dark"] code { color:#dcedf3; }
+  body[data-theme-resolved="dark"] .tok-k { color:#c4a7ff; } body[data-theme-resolved="dark"] .tok-f { color:#66d9ef; } body[data-theme-resolved="dark"] .tok-n { color:#ffbf69; } body[data-theme-resolved="dark"] .tok-c { color:#708e99; } body[data-theme-resolved="dark"] .tok-s { color:#6ee7b7; }
+  body[data-theme-resolved="dark"] .toast { background:rgba(3,20,27,.88); border-color:rgba(88,231,242,.14); color:#effcff; box-shadow:0 12px 35px rgba(0,0,0,.26); }
+
+  body[data-theme-resolved="dark"] .segmented,
+  body[data-theme-resolved="dark"] .lang-switch,
+  body[data-theme-resolved="dark"] .theme-switch {
+    background:rgba(3,21,28,.20) !important;
+    border-color:rgba(224,248,255,.14) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.09),inset 0 -1px 0 rgba(0,0,0,.07),0 7px 20px rgba(0,0,0,.10) !important;
+    backdrop-filter:blur(18px) saturate(150%) brightness(.96);
+    -webkit-backdrop-filter:blur(18px) saturate(150%) brightness(.96);
+  }
+  body[data-theme-resolved="dark"] .segmented button,
+  body[data-theme-resolved="dark"] .lang-switch button,
+  body[data-theme-resolved="dark"] .theme-switch button { color:#91aeb8; }
+  body[data-theme-resolved="dark"] .theme-switch button.active { color:transparent; text-shadow:none; }
+  body[data-theme-resolved="dark"] .segmented .menu-capsule {
+    background:radial-gradient(ellipse at 23% 0%,rgba(255,255,255,.28),rgba(255,255,255,.07) 30%,transparent 55%),linear-gradient(145deg,rgba(96,165,250,.18),rgba(59,130,246,.11) 54%,rgba(14,165,233,.08)),rgba(10,31,43,.12) !important;
+    border-color:rgba(232,250,255,.32) !important; border-top-color:rgba(255,255,255,.53) !important; border-left-color:rgba(255,255,255,.42) !important;
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.25),inset -1px -1px 0 rgba(37,99,235,.035),inset 0 -10px 22px rgba(37,99,235,.035),0 11px 28px rgba(0,0,0,.18) !important;
+    backdrop-filter:blur(22px) saturate(170%) brightness(.98) !important;
+    -webkit-backdrop-filter:blur(22px) saturate(170%) brightness(.98) !important;
+  }
+  body[data-theme-resolved="dark"].search-mode .segmented .menu-capsule { background:radial-gradient(ellipse at 23% 0%,rgba(255,255,255,.26),rgba(255,255,255,.065) 30%,transparent 55%),linear-gradient(145deg,rgba(192,132,252,.16),rgba(139,92,246,.105) 52%,rgba(244,114,182,.09)),rgba(25,19,43,.12) !important; }
+  body[data-theme-resolved="dark"] .lang-capsule,
+  body[data-theme-resolved="dark"] .theme-capsule { border-color:rgba(232,250,255,.33) !important; border-top-color:rgba(255,255,255,.55) !important; border-left-color:rgba(255,255,255,.43) !important; backdrop-filter:blur(21px) saturate(170%) brightness(.99) !important; -webkit-backdrop-filter:blur(21px) saturate(170%) brightness(.99) !important; }
+  body[data-theme-resolved="dark"] .lang-capsule { background:radial-gradient(ellipse at 23% 0%,rgba(255,255,255,.28),rgba(255,255,255,.07) 31%,transparent 56%),linear-gradient(145deg,rgba(56,189,248,.16),rgba(59,130,246,.10) 54%,rgba(129,140,248,.09)),rgba(8,26,38,.12) !important; box-shadow:inset 1px 1px 0 rgba(255,255,255,.25),inset -1px -1px 0 rgba(37,99,235,.035),0 9px 22px rgba(0,0,0,.17) !important; }
+  body[data-theme-resolved="dark"] .theme-capsule { background:radial-gradient(ellipse at 23% 0%,rgba(255,255,255,.29),rgba(255,255,255,.075) 31%,transparent 56%),linear-gradient(145deg,rgba(56,189,248,.15),rgba(99,102,241,.10) 54%,rgba(168,85,247,.085)),rgba(8,26,38,.12); box-shadow:inset 1px 1px 0 rgba(255,255,255,.25),inset -1px -1px 0 rgba(37,99,235,.035),0 9px 22px rgba(0,0,0,.17); }
+  body[data-theme-resolved="dark"] .segmented .menu-capsule::after,
+  body[data-theme-resolved="dark"] .lang-capsule::after { border-color:rgba(255,255,255,.10) !important; box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -7px 17px rgba(0,0,0,.035) !important; }
+  body[data-theme-resolved="dark"] .floating-active-label { color:#f4fdff; text-shadow:0 1px 6px rgba(0,0,0,.28); }
+
+  @media (max-width: 760px) {
+    .header-controls { width:100%; justify-content:space-between; }
+    .theme-switch button { min-width:54px; padding:0 7px; }
+    .theme-switch button > span:last-child { display:none; }
+    .theme-switch button > span:first-child { font-size:14px; }
+    .theme-switch { flex:0 0 auto; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;overflow:hidden;pointer-events:none">
+  <defs>
+    <filter id="menuGlassDistortion" x="-28%" y="-50%" width="156%" height="200%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.075" numOctaves="1" seed="9" result="glassNoise"/>
+      <feGaussianBlur in="glassNoise" stdDeviation="0.35" result="softGlassNoise"/>
+      <feDisplacementMap in="SourceGraphic" in2="softGlassNoise" scale="8.5" xChannelSelector="R" yChannelSelector="G" result="bentContent"/>
+      <feGaussianBlur in="bentContent" stdDeviation="0.16"/>
+    </filter>
+  </defs>
+</svg>
+<div class="app">
+  <header class="glass">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 16.5 9 12l3 2.6L19 7" stroke="#8ffff6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5" cy="16.5" r="1.6" fill="#dffffc"/><circle cx="9" cy="12" r="1.6" fill="#dffffc"/><circle cx="12" cy="14.6" r="1.6" fill="#dffffc"/><circle cx="19" cy="7" r="1.6" fill="#dffffc"/></svg>
+      </div>
+      <div><h1>AlgoGlass</h1><p>Visualize • Understand • Remember</p></div>
+    </div>
+    <div class="header-controls">
+      <div class="theme-switch" id="themeSwitch" role="group" aria-label="Chọn giao diện Light, System hoặc Dark">
+        <div class="theme-capsule" aria-hidden="true">
+          <span class="floating-active-label" id="themeActiveLabel">System</span>
+          <span class="theme-caustic"></span>
+        </div>
+        <button type="button" data-theme="light" aria-label="Giao diện Light"><span aria-hidden="true">☀</span><span>Light</span></button>
+        <button type="button" data-theme="system" class="active" aria-label="Theo giao diện hệ thống"><span aria-hidden="true">◐</span><span>System</span></button>
+        <button type="button" data-theme="dark" aria-label="Giao diện Dark"><span aria-hidden="true">☾</span><span>Dark</span></button>
+      </div>
+      <div class="segmented" id="modeTabs" aria-label="Chọn chế độ">
+        <div class="menu-capsule" aria-hidden="true">
+          <span class="floating-active-label" id="menuActiveLabel">Sort Lab</span>
+          <div class="menu-refraction" id="menuRefraction">
+            <span class="menu-refraction-label" data-refraction-for="sortTab">Sort Lab</span>
+            <span class="menu-refraction-label" data-refraction-for="searchTab">Search Lab</span>
+          </div>
+          <span class="menu-caustic"></span>
+        </div>
+        <button id="sortTab" class="active">Sort Lab</button>
+        <button id="searchTab">Search Lab</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="panel glass">
+      <div class="toolbar sort-controls">
+        <div class="control-group">
+          <label>Thuật toán sắp xếp</label>
+          <select id="algorithmSelect">
+            <optgroup label="Cơ bản">
+              <option value="bubble">Bubble Sort</option>
+              <option value="selection">Selection Sort</option>
+              <option value="insertion">Insertion Sort</option>
+            </optgroup>
+            <optgroup label="Trung cấp">
+              <option value="merge">Merge Sort</option>
+              <option value="quick">Quick Sort</option>
+              <option value="heap">Heap Sort</option>
+              <option value="shell">Shell Sort</option>
+            </optgroup>
+            <optgroup label="Nâng cao / Non-comparison">
+              <option value="counting">Counting Sort</option>
+              <option value="radix">Radix Sort</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="button-row">
+          <button class="action" id="shuffleBtn" title="Mảng ngẫu nhiên">↻</button>
+          <button class="action text" id="newArrayBtn">New Array</button>
+        </div>
+        <div class="button-row">
+          <button class="action" id="prevBtn" title="Bước trước">⏮</button>
+          <button class="action primary" id="playBtn" title="Play / Pause">▶</button>
+          <button class="action" id="nextBtn" title="Bước tiếp">⏭</button>
+        </div>
+      </div>
+
+      <div class="search-controls">
+        <div class="control-group"><label>Thuật toán tìm kiếm</label><select id="searchAlgorithm"><option value="linear">Linear Search</option><option value="binary">Binary Search</option></select></div>
+        <div class="control-group"><label>Giá trị cần tìm</label><input id="searchTarget" type="text" value="42" inputmode="numeric" /></div>
+        <button class="action primary text" id="searchRunBtn">Run Search</button>
+      </div>
+
+      <div class="visual-stage" id="stage">
+        <div class="bars" id="bars"></div>
+      </div>
+
+      <div class="status-strip">
+        <div class="stat"><span>Step</span><strong id="stepStat">0 / 0</strong></div>
+        <div class="stat"><span>Comparisons</span><strong id="compareStat">0</strong></div>
+        <div class="stat"><span>Writes / Swaps</span><strong id="writeStat">0</strong></div>
+        <div class="stat"><span>Status</span><strong id="statusStat">Ready</strong></div>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-head"><span>Timeline</span><span id="explain">Chọn thuật toán rồi nhấn Play.</span></div>
+        <input id="timeline" type="range" min="0" max="0" value="0" />
+      </div>
+    </section>
+
+    <aside class="panel glass code-panel">
+      <div class="code-head">
+        <div class="code-title"><h2 id="codeHeading">Bubble Sort</h2><p id="codeSubtitle">Implementation tương ứng với animation</p></div>
+        <div class="lang-switch" id="langSwitch" aria-label="Chọn ngôn ngữ lập trình">
+          <div class="lang-capsule" aria-hidden="true">
+            <span class="floating-active-label" id="langActiveLabel">C++</span>
+            <span class="lang-caustic"></span>
+          </div>
+          <button data-lang="cpp" class="active">C++</button>
+          <button data-lang="java">Java</button>
+          <button data-lang="csharp">C#</button>
+        </div>
+      </div>
+      <pre><code id="codeView"></code></pre>
+    </aside>
+  </main>
+
+  <section class="bottom-grid">
+    <article class="info-card glass">
+      <h3 id="algoName">Bubble Sort — đổi chỗ các cặp liền kề</h3>
+      <div class="algo-meta">
+        <div class="meta-box"><small>Best</small><b id="bestMeta">O(n)</b></div>
+        <div class="meta-box"><small>Average</small><b id="avgMeta">O(n²)</b></div>
+        <div class="meta-box"><small>Worst</small><b id="worstMeta">O(n²)</b></div>
+        <div class="meta-box"><small>Space</small><b id="spaceMeta">O(1)</b></div>
+      </div>
+      <p class="hint" id="algoDescription">So sánh từng cặp phần tử đứng cạnh nhau. Nếu sai thứ tự thì đổi chỗ; sau mỗi vòng lặp, phần tử lớn nhất còn lại “nổi” về cuối.</p>
+      <div class="legend"><span><i class="dot c"></i>Compare</span><span><i class="dot e"></i>Equal</span><span><i class="dot s"></i>Swap</span><span><i class="dot w"></i>Write</span><span><i class="dot p"></i>Pivot</span><span><i class="dot ok"></i>Sorted / Found</span></div>
+    </article>
+
+    <article class="info-card glass">
+      <h3>Playground</h3>
+      <div class="input-line"><input id="arrayInput" type="text" placeholder="Ví dụ: 42, 17, 8, 99, 23" /><button class="action text" id="applyArrayBtn">Apply</button></div>
+      <div class="range-line"><div><span class="small-label">Số phần tử mảng · tối đa 50</span><input id="elementCountRange" type="range" min="2" max="50" step="1" value="12" /></div><span class="speed" id="elementCountLabel">12 elements</span></div>
+      <div class="duplicate-option">
+        <label class="duplicate-check" for="duplicatesCheck">
+          <input id="duplicatesCheck" type="checkbox" />
+          <span class="check-box" aria-hidden="true">✓</span>
+          <span class="duplicate-copy"><b>Cho phép giá trị bằng nhau</b><small>Random sẽ chủ động tạo duplicate; Quick Sort dùng 3-way partition.</small></span>
+          <span class="duplicate-badge" id="duplicateBadge">Unique</span>
+        </label>
+      </div>
+      <div class="range-line"><div><span class="small-label">Tốc độ animation</span><input id="speedRange" type="range" min="40" max="900" value="360" /></div><span class="speed" id="speedLabel">360 ms</span></div>
+      <p class="hint">Mẹo học: chạy chậm ở lần đầu, dùng <b>Step</b> để quan sát compare/swap, sau đó tăng tốc để nhìn “pattern” của cả thuật toán.</p>
+    </article>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const barsEl = $('#bars');
+let array = [42,17,8,63,29,11,75,54,37,20,68,5];
+let baseArray = [...array];
+let actions = [];
+let step = 0;
+let playing = false;
+let timer = null; // requestAnimationFrame id
+let lastTick = 0;
+let swapAnimating = false;
+let activeSwap = null;
+let swapToken = 0;
+let stateCache = [];
+let barNodes = [];
+let speed = 360;
+let elementCount = array.length;
+let currentLang = 'cpp';
+let mode = 'sort';
+let allowDuplicates = false;
+
+const algoInfo = {
+  bubble:{name:'Bubble Sort', tagline:'đổi chỗ các cặp liền kề', best:'O(n)', avg:'O(n²)', worst:'O(n²)', space:'O(1)', desc:'So sánh từng cặp phần tử đứng cạnh nhau. Nếu sai thứ tự thì đổi chỗ; sau mỗi vòng lặp, phần tử lớn nhất còn lại “nổi” về cuối.'},
+  selection:{name:'Selection Sort', tagline:'chọn phần tử nhỏ nhất cho từng vị trí', best:'O(n²)', avg:'O(n²)', worst:'O(n²)', space:'O(1)', desc:'Mỗi vòng tìm phần tử nhỏ nhất trong đoạn chưa sắp xếp rồi đưa nó về đầu đoạn. Dễ hiểu nhưng số lần so sánh luôn nhiều.'},
+  insertion:{name:'Insertion Sort', tagline:'chèn phần tử vào đoạn đã có thứ tự', best:'O(n)', avg:'O(n²)', worst:'O(n²)', space:'O(1)', desc:'Coi phần bên trái là đã sắp xếp. Lấy từng phần tử mới và dịch các phần tử lớn hơn sang phải để tạo đúng vị trí chèn.'},
+  merge:{name:'Merge Sort', tagline:'chia để trị rồi trộn hai nửa', best:'O(n log n)', avg:'O(n log n)', worst:'O(n log n)', space:'O(n)', desc:'Chia mảng đến khi mỗi đoạn còn 1 phần tử, sau đó merge các đoạn đã có thứ tự. Hiệu năng ổn định và rất quan trọng để hiểu divide & conquer.'},
+  quick:{name:'Quick Sort', tagline:'chia mảng quanh pivot', best:'O(n log n)', avg:'O(n log n)', worst:'O(n²)', space:'O(log n)', desc:'Chọn pivot, đưa phần tử nhỏ hơn pivot sang trái và lớn hơn sang phải, rồi đệ quy trên hai phía. Thực tế thường rất nhanh.'},
+  heap:{name:'Heap Sort', tagline:'dùng max-heap để lấy cực đại', best:'O(n log n)', avg:'O(n log n)', worst:'O(n log n)', space:'O(1)', desc:'Biến mảng thành max-heap. Đổi root (lớn nhất) xuống cuối rồi heapify phần còn lại. Vừa in-place vừa có worst-case tốt.'},
+  shell:{name:'Shell Sort', tagline:'insertion sort với khoảng gap giảm dần', best:'≈ O(n log n)', avg:'phụ thuộc gap', worst:'O(n²)', space:'O(1)', desc:'So sánh và chèn các phần tử cách xa nhau trước, sau đó giảm gap. Khi gap = 1, mảng đã gần có thứ tự nên insertion sort chạy nhanh hơn.'},
+  counting:{name:'Counting Sort', tagline:'đếm tần suất thay vì so sánh', best:'O(n+k)', avg:'O(n+k)', worst:'O(n+k)', space:'O(k)', desc:'Đếm số lần xuất hiện của từng giá trị rồi ghi lại mảng theo thứ tự. Rất nhanh khi miền giá trị k không quá lớn; không dựa trên compare.'},
+  radix:{name:'Radix Sort', tagline:'sắp xếp theo từng chữ số', best:'O(d·(n+k))', avg:'O(d·(n+k))', worst:'O(d·(n+k))', space:'O(n+k)', desc:'Sắp xếp ổn định lần lượt theo hàng đơn vị, chục, trăm… thường dùng Counting Sort cho mỗi digit. Không so sánh trực tiếp hai số.'},
+  linear:{name:'Linear Search', tagline:'quét lần lượt từ trái sang phải', best:'O(1)', avg:'O(n)', worst:'O(n)', space:'O(1)', desc:'Kiểm tra từng phần tử cho đến khi gặp target. Không cần mảng có thứ tự.'},
+  binary:{name:'Binary Search', tagline:'loại một nửa không gian sau mỗi bước', best:'O(1)', avg:'O(log n)', worst:'O(log n)', space:'O(1)', desc:'Yêu cầu dữ liệu đã sắp xếp. So target với phần tử giữa, rồi chỉ giữ lại nửa có khả năng chứa target.'}
+};
+
+function A(type, data={}, text='') { actions.push({type, ...data, text}); }
+function C(indices, leftValue, rightValue, text){
+  A('compare',{indices},text);
+  if(allowDuplicates && leftValue===rightValue){
+    A('equal',{indices},`Bằng nhau: ${leftValue} = ${rightValue} → không cần đổi chỗ chỉ vì equality`);
+  }
+}
+function clone(a){ return [...a]; }
+
+function bubbleSteps(input){
+  const a=clone(input); actions=[]; const n=a.length;
+  for(let i=0;i<n-1;i++){
+    let moved=false;
+    for(let j=0;j<n-i-1;j++){
+      C([j,j+1],a[j],a[j+1],`So sánh ${a[j]} và ${a[j+1]}`);
+      if(a[j]>a[j+1]){ [a[j],a[j+1]]=[a[j+1],a[j]]; A('swap',{i:j,j:j+1,array:clone(a)},`Đổi chỗ vì ${a[j]} < ${a[j+1]}`); moved=true; }
+    }
+    A('mark',{indices:[n-i-1]},`Vị trí ${n-i-1} đã đúng`);
+    if(!moved) break;
+  }
+  A('done',{array:clone(a)},'Hoàn tất Bubble Sort'); return actions;
+}
+function selectionSteps(input){
+  const a=clone(input); actions=[];
+  for(let i=0;i<a.length-1;i++){
+    let min=i; A('select',{indices:[min]},`Giả sử ${a[min]} là nhỏ nhất`);
+    for(let j=i+1;j<a.length;j++){ C([min,j],a[min],a[j],`So sánh min ${a[min]} với ${a[j]}`); if(a[j]<a[min]){min=j; A('select',{indices:[min]},`Cập nhật min = ${a[min]}`);} }
+    if(min!==i){ [a[i],a[min]]=[a[min],a[i]]; A('swap',{i,j:min,array:clone(a)},`Đưa ${a[i]} về vị trí ${i}`); }
+    A('mark',{indices:[i]},`Vị trí ${i} đã đúng`);
+  }
+  A('done',{array:clone(a)},'Hoàn tất Selection Sort'); return actions;
+}
+function insertionSteps(input){
+  const a=clone(input); actions=[]; A('mark',{indices:[0]},'Phần tử đầu tiên tự nó đã có thứ tự');
+  for(let i=1;i<a.length;i++){
+    const key=a[i]; let j=i-1; A('select',{indices:[i]},`Lấy key = ${key}`);
+    while(j>=0){ C([j,j+1],a[j],key,`So sánh ${a[j]} với key ${key}`); if(a[j]<=key) break; a[j+1]=a[j]; A('write',{index:j+1,value:a[j+1],array:clone(a)},`Dịch ${a[j]} sang phải`); j--; }
+    a[j+1]=key; A('write',{index:j+1,value:key,array:clone(a)},`Chèn key ${key} vào vị trí ${j+1}`);
+    A('markRange',{l:0,r:i},`Đoạn 0..${i} đã có thứ tự`);
+  }
+  A('done',{array:clone(a)},'Hoàn tất Insertion Sort'); return actions;
+}
+function mergeSteps(input){
+  const a=clone(input); actions=[];
+  function merge(l,m,r){
+    const left=a.slice(l,m+1), right=a.slice(m+1,r+1); let i=0,j=0,k=l;
+    A('range',{l,r},`Merge hai đoạn [${l}..${m}] và [${m+1}..${r}]`);
+    while(i<left.length && j<right.length){
+      C([l+i,m+1+j],left[i],right[j],`So sánh ${left[i]} và ${right[j]}`);
+      if(left[i]<=right[j]) a[k]=left[i++]; else a[k]=right[j++];
+      A('write',{index:k,value:a[k],array:clone(a)},`Ghi ${a[k]} vào vị trí ${k}`); k++;
+    }
+    while(i<left.length){ a[k]=left[i++]; A('write',{index:k,value:a[k],array:clone(a)},`Ghi phần còn lại vào ${k}`); k++; }
+    while(j<right.length){ a[k]=right[j++]; A('write',{index:k,value:a[k],array:clone(a)},`Ghi phần còn lại vào ${k}`); k++; }
+  }
+  function sort(l,r){ if(l>=r)return; const m=(l+r)>>1; A('range',{l,r},`Chia đoạn [${l}..${r}] tại ${m}`); sort(l,m); sort(m+1,r); merge(l,m,r); }
+  sort(0,a.length-1); A('done',{array:clone(a)},'Hoàn tất Merge Sort'); return actions;
+}
+function quickSteps(input){
+  const a=clone(input); actions=[];
+  function part(l,r){ const pivot=a[r]; let i=l-1; A('pivot',{index:r},`Chọn pivot = ${pivot}`);
+    for(let j=l;j<r;j++){ C([j,r],a[j],pivot,`So ${a[j]} với pivot ${pivot}`); if(a[j]<pivot){ i++; if(i!==j){[a[i],a[j]]=[a[j],a[i]]; A('swap',{i,j,array:clone(a)},`Đưa ${a[i]} sang vùng < pivot`);} } }
+    [a[i+1],a[r]]=[a[r],a[i+1]]; A('swap',{i:i+1,j:r,array:clone(a)},`Đặt pivot vào vị trí ${i+1}`); A('mark',{indices:[i+1]},`Pivot ${pivot} đã đúng vị trí`); return i+1;
+  }
+  function qs(l,r){ if(l<r){ A('range',{l,r},`Xử lý đoạn [${l}..${r}]`); const p=part(l,r); qs(l,p-1); qs(p+1,r);} }
+  qs(0,a.length-1); A('done',{array:clone(a)},'Hoàn tất Quick Sort'); return actions;
+}
+function quick3WaySteps(input){
+  const a=clone(input); actions=[];
+  function qs(l,r){
+    if(l>r) return;
+    if(l===r){ A('mark',{indices:[l]},`Vị trí ${l} đã đúng`); return; }
+    const pivot=a[l]; let lt=l, i=l+1, gt=r;
+    A('pivot',{index:l},`3-way pivot = ${pivot}`);
+    while(i<=gt){
+      C([i,lt],a[i],pivot,`So ${a[i]} với pivot ${pivot}`);
+      if(a[i]<pivot){
+        if(lt!==i){ [a[lt],a[i]]=[a[i],a[lt]]; A('swap',{i:lt,j:i,array:clone(a)},`Đưa ${a[lt]} vào vùng < ${pivot}`); }
+        lt++; i++;
+      } else if(a[i]>pivot){
+        if(i!==gt){ [a[i],a[gt]]=[a[gt],a[i]]; A('swap',{i,j:gt,array:clone(a)},`Đưa giá trị > ${pivot} sang phải`); }
+        gt--;
+      } else {
+        i++;
+      }
+    }
+    A('markRange',{l:lt,r:gt},`Nhóm bằng pivot ${pivot} đã ở đúng vùng [${lt}..${gt}]`);
+    qs(l,lt-1); qs(gt+1,r);
+  }
+  qs(0,a.length-1); A('done',{array:clone(a)},'Hoàn tất 3-Way Quick Sort'); return actions;
+}
+
+function heapSteps(input){
+  const a=clone(input); actions=[]; const n=a.length;
+  function heapify(size,i){ let largest=i; const l=2*i+1,r=2*i+2; if(l<size){C([largest,l],a[largest],a[l],`So parent ${a[largest]} với left ${a[l]}`); if(a[l]>a[largest])largest=l;} if(r<size){C([largest,r],a[largest],a[r],`So current max ${a[largest]} với right ${a[r]}`); if(a[r]>a[largest])largest=r;} if(largest!==i){[a[i],a[largest]]=[a[largest],a[i]];A('swap',{i,j:largest,array:clone(a)},'Swap để duy trì max-heap');heapify(size,largest);} }
+  for(let i=Math.floor(n/2)-1;i>=0;i--) heapify(n,i);
+  A('range',{l:0,r:n-1},'Đã xây dựng max-heap');
+  for(let end=n-1;end>0;end--){ [a[0],a[end]]=[a[end],a[0]]; A('swap',{i:0,j:end,array:clone(a)},`Đưa max ${a[end]} về cuối`); A('mark',{indices:[end]},`Vị trí ${end} đã đúng`); heapify(end,0); }
+  A('done',{array:clone(a)},'Hoàn tất Heap Sort'); return actions;
+}
+function shellSteps(input){
+  const a=clone(input); actions=[]; const n=a.length;
+  for(let gap=Math.floor(n/2);gap>0;gap=Math.floor(gap/2)){ A('range',{l:0,r:n-1},`Gap = ${gap}`); for(let i=gap;i<n;i++){ const temp=a[i]; let j=i; while(j>=gap){C([j-gap,j],a[j-gap],temp,`So ${a[j-gap]} với ${temp} (gap ${gap})`); if(a[j-gap]<=temp)break; a[j]=a[j-gap]; A('write',{index:j,value:a[j],array:clone(a)},`Dịch ${a[j]} theo gap`); j-=gap;} a[j]=temp; A('write',{index:j,value:temp,array:clone(a)},`Chèn ${temp} tại ${j}`);} }
+  A('done',{array:clone(a)},'Hoàn tất Shell Sort'); return actions;
+}
+function countingSteps(input){
+  const a=clone(input); actions=[]; const max=Math.max(...a), min=Math.min(...a); const count=Array(max-min+1).fill(0);
+  for(let i=0;i<a.length;i++){count[a[i]-min]++; A('count',{index:i},`Đếm ${a[i]} → count[${a[i]}] = ${count[a[i]-min]}`);}
+  let k=0; for(let v=min;v<=max;v++){let c=count[v-min]; while(c--){a[k]=v; A('write',{index:k,value:v,array:clone(a)},`Ghi ${v} theo bảng tần suất`);k++;}}
+  A('done',{array:clone(a)},'Hoàn tất Counting Sort'); return actions;
+}
+function radixSteps(input){
+  const a=clone(input); actions=[]; if(Math.min(...a)<0){A('done',{array:clone(a)},'Demo Radix hiện hỗ trợ số không âm');return actions;} const max=Math.max(...a);
+  for(let exp=1;Math.floor(max/exp)>0;exp*=10){ const out=Array(a.length), count=Array(10).fill(0); A('range',{l:0,r:a.length-1},`Sắp theo chữ số hàng ${exp}`); for(let i=0;i<a.length;i++){const d=Math.floor(a[i]/exp)%10;count[d]++;A('count',{index:i},`Digit(${a[i]}) = ${d}`);} for(let i=1;i<10;i++)count[i]+=count[i-1]; for(let i=a.length-1;i>=0;i--){const d=Math.floor(a[i]/exp)%10;out[--count[d]]=a[i];} for(let i=0;i<a.length;i++){a[i]=out[i];A('write',{index:i,value:a[i],array:clone(a)},`Ghi ${a[i]} sau pass exp=${exp}`);} }
+  A('done',{array:clone(a)},'Hoàn tất Radix Sort'); return actions;
+}
+
+function linearSearchSteps(input,target){ actions=[]; for(let i=0;i<input.length;i++){A('searchCheck',{index:i},`Kiểm tra index ${i}: ${input[i]} == ${target}?`); if(input[i]===target){A('found',{index:i},`Tìm thấy ${target} tại index ${i}`); return actions;} A('miss',{index:i},`${input[i]} không phải target`);} A('notFound',{},`Không tìm thấy ${target}`); return actions; }
+function binarySearchSteps(input,target){ actions=[]; let l=0,r=input.length-1; while(l<=r){ const m=(l+r)>>1; A('searchRange',{l,r,index:m},`Xét [${l}..${r}], mid=${m}, value=${input[m]}`); if(input[m]===target){A('found',{index:m},`Tìm thấy ${target} tại index ${m}`);return actions;} if(input[m]<target){A('discard',{l,l2:m},`${input[m]} < ${target} → bỏ nửa trái`);l=m+1;} else {A('discard',{l:m,r},`${input[m]} > ${target} → bỏ nửa phải`);r=m-1;} } A('notFound',{},`Không tìm thấy ${target}`); return actions; }
+
+const builders={bubble:bubbleSteps,selection:selectionSteps,insertion:insertionSteps,merge:mergeSteps,quick:quickSteps,heap:heapSteps,shell:shellSteps,counting:countingSteps,radix:radixSteps};
+
+function shuffled(values){
+  const a=[...values];
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function randomUniqueArray(n){
+  const pool=Array.from({length:91},(_,i)=>i+5);
+  return shuffled(pool).slice(0,n);
+}
+function randomDuplicateArray(n){
+  const poolSize=Math.max(1,Math.min(12,Math.ceil(n*.30)));
+  const pool=randomUniqueArray(poolSize);
+  const out=Array.from({length:n},()=>pool[Math.floor(Math.random()*pool.length)]);
+  if(n>1) out[1]=out[0]; // guarantee at least one visible duplicate pair
+  return shuffled(out);
+}
+function randomArray(n=12){
+  n=clampElementCount(n);
+  return allowDuplicates ? randomDuplicateArray(n) : randomUniqueArray(n);
+}
+function hasDuplicates(values){ return new Set(values).size!==values.length; }
+function clampElementCount(n){ return Math.max(2, Math.min(50, Math.round(Number(n)||2))); }
+function syncElementCount(n=array.length){
+  elementCount=clampElementCount(n);
+  $('#elementCountRange').value=elementCount;
+  $('#elementCountLabel').textContent=`${elementCount} elements`;
+}
+function resizeArray(count){
+  count=clampElementCount(count);
+  if(count<array.length){
+    array=array.slice(0,count);
+    if(!allowDuplicates && hasDuplicates(array)) array=randomUniqueArray(count);
+  } else if(count>array.length){
+    const next=clone(array);
+    while(next.length<count){
+      if(allowDuplicates && next.length && Math.random()<.68){
+        next.push(next[Math.floor(Math.random()*next.length)]);
+      } else {
+        let v=Math.floor(Math.random()*91)+5;
+        while(!allowDuplicates && next.includes(v)) v=Math.floor(Math.random()*91)+5;
+        next.push(v);
+      }
+    }
+    array=next;
+  }
+  baseArray=clone(array);
+  syncElementCount(count);
+  buildActions();
+}
+function getAlgo(){ return mode==='sort' ? $('#algorithmSelect').value : $('#searchAlgorithm').value; }
+function buildActions(){
+  stop(); step=0;
+  if(mode==='sort') {
+    const algo=getAlgo();
+    (algo==='quick' && allowDuplicates ? quick3WaySteps : builders[algo])(baseArray);
+  } else {
+    const target=Number($('#searchTarget').value);
+    if(getAlgo()==='binary') { baseArray=[...baseArray].sort((a,b)=>a-b); array=clone(baseArray); }
+    (getAlgo()==='binary'?binarySearchSteps:linearSearchSteps)(baseArray,target);
+  }
+  buildStateCache();
+  $('#timeline').max=actions.length; $('#timeline').value=0;
+  setMotionDuration(); renderAt(0,false); updateInfo(); updateCode();
+}
+
+function classesForAction(ac, length){
+  const classes={};
+  if(!ac) return classes;
+  if(ac.type==='compare') ac.indices.forEach(i=>classes[i]='compare');
+  if(ac.type==='equal') ac.indices.forEach(i=>classes[i]='equal');
+  if(ac.type==='swap'){classes[ac.i]='swap'; classes[ac.j]='swap';}
+  if(ac.type==='write') classes[ac.index]='write';
+  if(ac.type==='pivot') classes[ac.index]='pivot';
+  if(ac.type==='select') ac.indices.forEach(i=>classes[i]='pivot');
+  if(ac.type==='range') for(let i=0;i<length;i++) if(i<ac.l||i>ac.r) classes[i]='dim';
+  if(ac.type==='count') classes[ac.index]='write';
+  if(ac.type==='searchCheck') classes[ac.index]='compare';
+  if(ac.type==='searchRange') {for(let i=0;i<length;i++) if(i<ac.l||i>ac.r) classes[i]='dim'; classes[ac.index]='compare';}
+  if(ac.type==='found') classes[ac.index]='found';
+  return classes;
+}
+
+function buildStateCache(){
+  let a=clone(baseArray), marked=new Set(), miss=new Set();
+  let compare=0, write=0, explain='Sẵn sàng', status='Ready';
+  stateCache=[{a:clone(a),marked:new Set(),miss:new Set(),compare,write,classes:{},explain,status}];
+
+  for(const ac of actions){
+    explain=ac.text||explain;
+    if(ac.array) a=clone(ac.array);
+    if(ac.type==='compare') compare++;
+    if(ac.type==='swap'||ac.type==='write') write++;
+    if(ac.type==='mark') ac.indices.forEach(i=>marked.add(i));
+    if(ac.type==='markRange') for(let i=ac.l;i<=ac.r;i++) marked.add(i);
+    if(ac.type==='miss') miss.add(ac.index);
+    if(ac.type==='done'){ for(let i=0;i<a.length;i++) marked.add(i); status='Done'; }
+    if(ac.type==='found'){ marked.add(ac.index); status='Found'; }
+    if(ac.type==='notFound') status='Not found';
+    stateCache.push({
+      a:clone(a), marked:new Set(marked), miss:new Set(miss), compare, write,
+      classes:classesForAction(ac,a.length), explain, status
+    });
+  }
+}
+
+function stateAt(s){
+  return stateCache[Math.max(0,Math.min(s,stateCache.length-1))] || stateCache[0];
+}
+
+function ensureBarNodes(count){
+  if(barNodes.length===count) return;
+  const frag=document.createDocumentFragment();
+  barNodes=[];
+  for(let i=0;i<count;i++){
+    const wrap=document.createElement('div'); wrap.className='bar-wrap';
+    const node=document.createElement('div'); node.className='node';
+    const bar=document.createElement('div'); bar.className='bar';
+    const idx=document.createElement('div'); idx.className='index'; idx.textContent=i;
+    wrap.append(node,bar,idx); frag.appendChild(wrap);
+    barNodes.push({wrap,node,bar,idx,value:null,height:null,className:''});
+  }
+  barsEl.replaceChildren(frag);
+}
+
+function setMotionDuration(){
+  // Base transitions finish before the next algorithm step. Swap motion has its own WAAPI timing.
+  const ms=Math.max(28, Math.min(300, Math.round(speed*0.72)));
+  document.documentElement.style.setProperty('--motion-ms', `${ms}ms`);
+}
+
+function paintState(st, displayStep=step){
+  array=st.a;
+  const max=Math.max(...array,1), min=Math.min(...array,0), spread=Math.max(1,max-min);
+  ensureBarNodes(array.length);
+  barsEl.classList.toggle('dense', array.length>24);
+  barsEl.classList.toggle('ultra-dense', array.length>36);
+
+  array.forEach((v,i)=>{
+    const ref=barNodes[i];
+    const names=['bar-wrap'];
+    if(st.marked.has(i)) names.push('sorted');
+    if(st.miss.has(i)) names.push('miss');
+    if(st.classes[i]) names.push(st.classes[i]);
+    const cls=names.join(' ');
+    if(ref.className!==cls){ ref.wrap.className=cls; ref.className=cls; }
+    if(ref.value!==v){ ref.node.textContent=v; ref.value=v; }
+    const pct=14+((v-min)/spread)*72;
+    const h=`${pct}%`;
+    if(ref.height!==h){ ref.bar.style.height=h; ref.height=h; }
+  });
+
+  $('#stepStat').textContent=`${displayStep} / ${actions.length}`;
+  $('#compareStat').textContent=st.compare;
+  $('#writeStat').textContent=st.write;
+  $('#statusStat').textContent=playing?'Playing':st.status;
+  $('#explain').textContent=displayStep===0?(mode==='sort'?'Nhấn Play hoặc Step để bắt đầu.':'Nhấn Run Search rồi quan sát từng bước.'):st.explain;
+  $('#timeline').value=displayStep;
+  $('#playBtn').textContent=playing?'Ⅱ':'▶';
+}
+
+function finishActiveSwap(){
+  if(!activeSwap) return;
+  const current=activeSwap;
+  activeSwap=null;
+  swapAnimating=false;
+  swapToken++;
+  current.animations.forEach(a=>{ try{a.cancel();}catch(_){} });
+  if(current.wraps) current.wraps.forEach(w=>w.style.zIndex='');
+  step=current.targetStep;
+  paintState(stateAt(step),step);
+  lastTick=performance.now();
+}
+
+function animateSwapTo(targetStep, ac){
+  const fromStep=step;
+  const from=stateAt(fromStep);
+  const to=stateAt(targetStep);
+  const i=ac.i, j=ac.j;
+  if(i===j || !barNodes[i] || !barNodes[j]){
+    step=targetStep; paintState(to,step); return;
+  }
+
+  // Keep the pre-swap values visible while the swap action is highlighted.
+  // We then move each complete visual item to the other slot and only commit
+  // the new values after the physical exchange finishes. This avoids teleporting.
+  const motionState={...to, a:clone(from.a)};
+  step=targetStep;
+  paintState(motionState,step);
+
+  const left=barNodes[i], right=barNodes[j];
+  const rectA=left.wrap.getBoundingClientRect();
+  const rectB=right.wrap.getBoundingClientRect();
+  const dx=rectB.left-rectA.left;
+  if(Math.abs(dx)<1){
+    paintState(to,targetStep);
+    return;
+  }
+
+  // Duration follows the learning speed, but is clamped so even fast playback
+  // still shows a readable, smooth physical exchange.
+  const duration=Math.max(140, Math.min(540, Math.round(speed*0.84)));
+  const easing='cubic-bezier(.20,.78,.18,1)';
+  const lift=Math.min(16, Math.max(7, Math.abs(dx)*0.055));
+  const opts={duration,easing,fill:'forwards'};
+
+  swapAnimating=true;
+  const token=++swapToken;
+  left.wrap.style.zIndex='6';
+  right.wrap.style.zIndex='5';
+
+  // Move each full value-item (number + bar) to the opposite array slot.
+  // Slightly different arcs prevent the two items from visually merging while crossing.
+  const aMove=left.wrap.animate([
+    {transform:'translate3d(0,0,0) scale(1)', offset:0},
+    {transform:`translate3d(${dx*.48}px,${-lift}px,0) scale(1.045)`, offset:.48},
+    {transform:`translate3d(${dx}px,0,0) scale(1)`, offset:1}
+  ],opts);
+  const bMove=right.wrap.animate([
+    {transform:'translate3d(0,0,0) scale(1)', offset:0},
+    {transform:`translate3d(${-dx*.52}px,${lift*.42}px,0) scale(.985)`, offset:.52},
+    {transform:`translate3d(${-dx}px,0,0) scale(1)`, offset:1}
+  ],opts);
+
+  // Array indexes are positions, not values, so keep the index labels visually fixed.
+  // Their inverse transforms cancel the parent movement.
+  const aIndex=left.idx.animate([
+    {transform:'translate3d(0,0,0)', offset:0},
+    {transform:`translate3d(${-dx*.48}px,${lift}px,0)`, offset:.48},
+    {transform:`translate3d(${-dx}px,0,0)`, offset:1}
+  ],opts);
+  const bIndex=right.idx.animate([
+    {transform:'translate3d(0,0,0)', offset:0},
+    {transform:`translate3d(${dx*.52}px,${-lift*.42}px,0)`, offset:.52},
+    {transform:`translate3d(${dx}px,0,0)`, offset:1}
+  ],opts);
+
+  const animations=[aMove,bMove,aIndex,bIndex];
+  activeSwap={targetStep,animations,token,wraps:[left.wrap,right.wrap]};
+
+  Promise.allSettled(animations.map(a=>a.finished)).then(()=>{
+    if(!activeSwap || activeSwap.token!==token || token!==swapToken) return;
+    const done=activeSwap;
+    activeSwap=null;
+
+    // Commit destination values while the items are still visually at the destination,
+    // then remove temporary transforms in the same frame for a seamless hand-off.
+    paintState(to,targetStep);
+    done.animations.forEach(a=>{try{a.cancel();}catch(_){}});
+    done.wraps.forEach(w=>w.style.zIndex='');
+    swapAnimating=false;
+    lastTick=performance.now();
+  });
+}
+
+function renderAt(s, animateSwap=true){
+  const target=Math.max(0,Math.min(s,actions.length));
+  if(activeSwap) finishActiveSwap();
+  const ac=target>0 ? actions[target-1] : null;
+  if(animateSwap && mode==='sort' && target===step+1 && ac?.type==='swap'){
+    animateSwapTo(target,ac);
+    return;
+  }
+  step=target;
+  paintState(stateAt(step),step);
+}
+
+function next(){ if(step>=actions.length){stop();renderAt(step,false);return;} renderAt(step+1,true); }
+function prev(){ stop(); renderAt(step-1,false); }
+
+function playbackFrame(now){
+  if(!playing) return;
+  if(swapAnimating){ timer=requestAnimationFrame(playbackFrame); return; }
+  if(!lastTick) lastTick=now;
+  const elapsed=now-lastTick;
+  if(elapsed>=speed){
+    // One semantic action per tick keeps compare -> swap motion readable and prevents skipped exchanges.
+    lastTick=now;
+    renderAt(Math.min(actions.length, step+1),true);
+    if(step>=actions.length && !swapAnimating){ stop(); renderAt(step,false); return; }
+  }
+  timer=requestAnimationFrame(playbackFrame);
+}
+
+function play(){
+  if(playing){stop();renderAt(step,false);return;}
+  if(step>=actions.length) step=0;
+  playing=true; lastTick=0; setMotionDuration();
+  document.body.classList.add('is-playing');
+  renderAt(step,false);
+  timer=requestAnimationFrame(playbackFrame);
+}
+function stop(){
+  playing=false; lastTick=0;
+  document.body.classList.remove('is-playing');
+  if(timer){cancelAnimationFrame(timer);timer=null;}
+  if(activeSwap) finishActiveSwap();
+}
+function toast(msg){ const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1400); }
+
+function updateInfo(){
+  const key=getAlgo();
+  const base=algoInfo[key];
+  const info=(mode==='sort' && allowDuplicates && key==='quick') ? {
+    ...base, name:'Quick Sort · 3-Way', tagline:'gom < pivot / = pivot / > pivot',
+    best:'O(n)', avg:'O(n log n)', worst:'O(n²)', space:'O(log n)',
+    desc:'Biến thể 3-way partition (Dutch National Flag) gom toàn bộ phần tử bằng pivot vào một vùng giữa. Với mảng có nhiều giá trị trùng nhau, nó tránh phải đệ quy lại trên cả nhóm bằng pivot.'
+  } : base;
+  $('#algoName').textContent=`${info.name} — ${info.tagline}`;
+  $('#bestMeta').textContent=info.best; $('#avgMeta').textContent=info.avg; $('#worstMeta').textContent=info.worst; $('#spaceMeta').textContent=info.space;
+  $('#algoDescription').textContent=info.desc; $('#codeHeading').textContent=info.name;
+}
+
+const snippets = {
+  bubble:{
+cpp:`void bubbleSort(vector<int>& a) {\n  for (int i = 0; i < a.size() - 1; ++i) {\n    bool moved = false;\n    for (int j = 0; j < a.size() - i - 1; ++j)\n      if (a[j] > a[j + 1]) {\n        swap(a[j], a[j + 1]);\n        moved = true;\n      }\n    if (!moved) break;\n  }\n}`,
+java:`static void bubbleSort(int[] a) {\n  for (int i = 0; i < a.length - 1; i++) {\n    boolean moved = false;\n    for (int j = 0; j < a.length - i - 1; j++)\n      if (a[j] > a[j + 1]) {\n        int t = a[j]; a[j] = a[j+1]; a[j+1] = t;\n        moved = true;\n      }\n    if (!moved) break;\n  }\n}`,
+csharp:`static void BubbleSort(int[] a) {\n  for (int i = 0; i < a.Length - 1; i++) {\n    bool moved = false;\n    for (int j = 0; j < a.Length - i - 1; j++)\n      if (a[j] > a[j + 1]) {\n        (a[j], a[j + 1]) = (a[j + 1], a[j]);\n        moved = true;\n      }\n    if (!moved) break;\n  }\n}`},
+  selection:{cpp:`void selectionSort(vector<int>& a) {\n  for (int i = 0; i + 1 < a.size(); ++i) {\n    int mn = i;\n    for (int j = i + 1; j < a.size(); ++j)\n      if (a[j] < a[mn]) mn = j;\n    swap(a[i], a[mn]);\n  }\n}`,
+java:`static void selectionSort(int[] a) {\n  for (int i = 0; i < a.length - 1; i++) {\n    int mn = i;\n    for (int j = i + 1; j < a.length; j++)\n      if (a[j] < a[mn]) mn = j;\n    int t=a[i]; a[i]=a[mn]; a[mn]=t;\n  }\n}`,
+csharp:`static void SelectionSort(int[] a) {\n  for (int i = 0; i < a.Length - 1; i++) {\n    int mn = i;\n    for (int j = i + 1; j < a.Length; j++)\n      if (a[j] < a[mn]) mn = j;\n    (a[i], a[mn]) = (a[mn], a[i]);\n  }\n}`},
+  insertion:{cpp:`void insertionSort(vector<int>& a) {\n  for (int i = 1; i < a.size(); ++i) {\n    int key = a[i], j = i - 1;\n    while (j >= 0 && a[j] > key) {\n      a[j + 1] = a[j]; --j;\n    }\n    a[j + 1] = key;\n  }\n}`,
+java:`static void insertionSort(int[] a) {\n  for (int i = 1; i < a.length; i++) {\n    int key=a[i], j=i-1;\n    while (j>=0 && a[j]>key) { a[j+1]=a[j]; j--; }\n    a[j+1]=key;\n  }\n}`,
+csharp:`static void InsertionSort(int[] a) {\n  for (int i=1; i<a.Length; i++) {\n    int key=a[i], j=i-1;\n    while (j>=0 && a[j]>key) { a[j+1]=a[j]; j--; }\n    a[j+1]=key;\n  }\n}`},
+  merge:{cpp:`void mergeSort(vector<int>& a, int l, int r) {\n  if (l >= r) return;\n  int m = (l + r) / 2;\n  mergeSort(a, l, m);\n  mergeSort(a, m + 1, r);\n  vector<int> t; int i=l, j=m+1;\n  while (i<=m && j<=r)\n    t.push_back(a[i] <= a[j] ? a[i++] : a[j++]);\n  while (i<=m) t.push_back(a[i++]);\n  while (j<=r) t.push_back(a[j++]);\n  copy(t.begin(), t.end(), a.begin()+l);\n}`,
+java:`static void mergeSort(int[] a,int l,int r){\n  if(l>=r)return; int m=(l+r)/2;\n  mergeSort(a,l,m); mergeSort(a,m+1,r);\n  int[] t=new int[r-l+1]; int i=l,j=m+1,k=0;\n  while(i<=m&&j<=r) t[k++]=a[i]<=a[j]?a[i++]:a[j++];\n  while(i<=m)t[k++]=a[i++]; while(j<=r)t[k++]=a[j++];\n  for(i=0;i<t.length;i++)a[l+i]=t[i];\n}`,
+csharp:`static void MergeSort(int[] a,int l,int r){\n  if(l>=r)return; int m=(l+r)/2;\n  MergeSort(a,l,m); MergeSort(a,m+1,r);\n  var t=new List<int>(); int i=l,j=m+1;\n  while(i<=m&&j<=r)t.Add(a[i]<=a[j]?a[i++]:a[j++]);\n  while(i<=m)t.Add(a[i++]); while(j<=r)t.Add(a[j++]);\n  for(i=0;i<t.Count;i++)a[l+i]=t[i];\n}`},
+  quick:{cpp:`int partition(vector<int>& a,int l,int r){\n  int pivot=a[r], i=l-1;\n  for(int j=l;j<r;j++)\n    if(a[j]<pivot) swap(a[++i],a[j]);\n  swap(a[i+1],a[r]); return i+1;\n}\nvoid quickSort(vector<int>& a,int l,int r){\n  if(l>=r)return; int p=partition(a,l,r);\n  quickSort(a,l,p-1); quickSort(a,p+1,r);\n}`,
+java:`static int partition(int[] a,int l,int r){\n  int pivot=a[r],i=l-1;\n  for(int j=l;j<r;j++) if(a[j]<pivot){i++;int t=a[i];a[i]=a[j];a[j]=t;}\n  int t=a[i+1];a[i+1]=a[r];a[r]=t; return i+1;\n}\nstatic void quickSort(int[] a,int l,int r){\n  if(l<r){int p=partition(a,l,r);quickSort(a,l,p-1);quickSort(a,p+1,r);}\n}`,
+csharp:`static int Partition(int[] a,int l,int r){\n  int pivot=a[r], i=l-1;\n  for(int j=l;j<r;j++) if(a[j]<pivot){ i++; (a[i],a[j])=(a[j],a[i]); }\n  (a[i+1],a[r])=(a[r],a[i+1]); return i+1;\n}\nstatic void QuickSort(int[] a,int l,int r){\n  if(l<r){int p=Partition(a,l,r);QuickSort(a,l,p-1);QuickSort(a,p+1,r);}\n}`},
+  heap:{cpp:`void heapify(vector<int>& a,int n,int i){\n  int mx=i,l=2*i+1,r=2*i+2;\n  if(l<n&&a[l]>a[mx])mx=l; if(r<n&&a[r]>a[mx])mx=r;\n  if(mx!=i){swap(a[i],a[mx]);heapify(a,n,mx);}\n}\nvoid heapSort(vector<int>& a){\n  for(int i=a.size()/2-1;i>=0;i--)heapify(a,a.size(),i);\n  for(int e=a.size()-1;e>0;e--){swap(a[0],a[e]);heapify(a,e,0);}\n}`,
+java:`static void heapify(int[] a,int n,int i){\n  int mx=i,l=2*i+1,r=2*i+2;\n  if(l<n&&a[l]>a[mx])mx=l; if(r<n&&a[r]>a[mx])mx=r;\n  if(mx!=i){int t=a[i];a[i]=a[mx];a[mx]=t;heapify(a,n,mx);}\n}\nstatic void heapSort(int[] a){\n  for(int i=a.length/2-1;i>=0;i--)heapify(a,a.length,i);\n  for(int e=a.length-1;e>0;e--){int t=a[0];a[0]=a[e];a[e]=t;heapify(a,e,0);}\n}`,
+csharp:`static void Heapify(int[] a,int n,int i){\n  int mx=i,l=2*i+1,r=2*i+2;\n  if(l<n&&a[l]>a[mx])mx=l; if(r<n&&a[r]>a[mx])mx=r;\n  if(mx!=i){(a[i],a[mx])=(a[mx],a[i]);Heapify(a,n,mx);}\n}\nstatic void HeapSort(int[] a){\n  for(int i=a.Length/2-1;i>=0;i--)Heapify(a,a.Length,i);\n  for(int e=a.Length-1;e>0;e--){(a[0],a[e])=(a[e],a[0]);Heapify(a,e,0);}\n}`},
+  shell:{cpp:`void shellSort(vector<int>& a){\n  for(int gap=a.size()/2;gap>0;gap/=2)\n    for(int i=gap;i<a.size();i++){\n      int x=a[i],j=i;\n      while(j>=gap&&a[j-gap]>x){a[j]=a[j-gap];j-=gap;}\n      a[j]=x;\n    }\n}`,
+java:`static void shellSort(int[] a){\n  for(int gap=a.length/2;gap>0;gap/=2)\n    for(int i=gap;i<a.length;i++){int x=a[i],j=i;while(j>=gap&&a[j-gap]>x){a[j]=a[j-gap];j-=gap;}a[j]=x;}\n}`,
+csharp:`static void ShellSort(int[] a){\n  for(int gap=a.Length/2;gap>0;gap/=2)\n    for(int i=gap;i<a.Length;i++){int x=a[i],j=i;while(j>=gap&&a[j-gap]>x){a[j]=a[j-gap];j-=gap;}a[j]=x;}\n}`},
+  counting:{cpp:`void countingSort(vector<int>& a){\n  int mn=*min_element(a.begin(),a.end());\n  int mx=*max_element(a.begin(),a.end());\n  vector<int> cnt(mx-mn+1);\n  for(int x:a) cnt[x-mn]++;\n  int k=0;\n  for(int v=mn;v<=mx;v++)\n    while(cnt[v-mn]--) a[k++]=v;\n}`,
+java:`static void countingSort(int[] a){\n  int mn=Arrays.stream(a).min().getAsInt(), mx=Arrays.stream(a).max().getAsInt();\n  int[] cnt=new int[mx-mn+1]; for(int x:a)cnt[x-mn]++;\n  int k=0; for(int v=mn;v<=mx;v++)while(cnt[v-mn]-->0)a[k++]=v;\n}`,
+csharp:`static void CountingSort(int[] a){\n  int mn=a.Min(),mx=a.Max(); var cnt=new int[mx-mn+1];\n  foreach(int x in a)cnt[x-mn]++; int k=0;\n  for(int v=mn;v<=mx;v++)while(cnt[v-mn]-->0)a[k++]=v;\n}`},
+  radix:{cpp:`void radixSort(vector<int>& a){\n  int mx=*max_element(a.begin(),a.end());\n  for(int exp=1;mx/exp>0;exp*=10){\n    vector<int> out(a.size()),cnt(10);\n    for(int x:a)cnt[(x/exp)%10]++;\n    for(int i=1;i<10;i++)cnt[i]+=cnt[i-1];\n    for(int i=a.size()-1;i>=0;i--)out[--cnt[(a[i]/exp)%10]]=a[i];\n    a=out;\n  }\n}`,
+java:`static void radixSort(int[] a){\n  int mx=Arrays.stream(a).max().getAsInt();\n  for(int exp=1;mx/exp>0;exp*=10){int[] out=new int[a.length],cnt=new int[10];for(int x:a)cnt[(x/exp)%10]++;for(int i=1;i<10;i++)cnt[i]+=cnt[i-1];for(int i=a.length-1;i>=0;i--)out[--cnt[(a[i]/exp)%10]]=a[i];System.arraycopy(out,0,a,0,a.length);}\n}`,
+csharp:`static void RadixSort(int[] a){\n  int mx=a.Max();\n  for(int exp=1;mx/exp>0;exp*=10){var o=new int[a.Length];var c=new int[10];foreach(int x in a)c[(x/exp)%10]++;for(int i=1;i<10;i++)c[i]+=c[i-1];for(int i=a.Length-1;i>=0;i--)o[--c[(a[i]/exp)%10]]=a[i];Array.Copy(o,a,a.Length);}\n}`},
+  linear:{cpp:`int linearSearch(const vector<int>& a,int target){\n  for(int i=0;i<a.size();i++)\n    if(a[i]==target) return i;\n  return -1;\n}`,
+java:`static int linearSearch(int[] a,int target){\n  for(int i=0;i<a.length;i++) if(a[i]==target)return i;\n  return -1;\n}`,
+csharp:`static int LinearSearch(int[] a,int target){\n  for(int i=0;i<a.Length;i++) if(a[i]==target)return i;\n  return -1;\n}`},
+  binary:{cpp:`int binarySearch(const vector<int>& a,int target){\n  int l=0,r=a.size()-1;\n  while(l<=r){\n    int m=l+(r-l)/2;\n    if(a[m]==target)return m;\n    if(a[m]<target)l=m+1; else r=m-1;\n  }\n  return -1;\n}`,
+java:`static int binarySearch(int[] a,int target){\n  int l=0,r=a.length-1;\n  while(l<=r){int m=l+(r-l)/2;if(a[m]==target)return m;if(a[m]<target)l=m+1;else r=m-1;}\n  return -1;\n}`,
+csharp:`static int BinarySearch(int[] a,int target){\n  int l=0,r=a.Length-1;\n  while(l<=r){int m=l+(r-l)/2;if(a[m]==target)return m;if(a[m]<target)l=m+1;else r=m-1;}\n  return -1;\n}`}
+};
+
+const duplicateNotes = {
+  bubble:'Dùng > thay vì >= nên các phần tử bằng nhau không bị swap; Bubble Sort giữ tính stable.',
+  selection:'Giá trị bằng nhau vẫn được xử lý đúng; Selection Sort cơ bản không đảm bảo stable.',
+  insertion:'Chỉ dịch khi a[j] > key, vì vậy phần tử bằng key giữ thứ tự tương đối (stable).',
+  merge:'Khi bằng nhau dùng <= để lấy phần tử từ nửa trái trước, giúp Merge Sort stable.',
+  quick:'Dùng 3-way partition để gom toàn bộ phần tử = pivot vào cùng một vùng.',
+  heap:'Heapify chỉ đổi khi phần tử con lớn hơn; duplicate được sort đúng nhưng Heap Sort không stable.',
+  shell:'Điều kiện > xử lý duplicate đúng; Shell Sort nhìn chung không stable.',
+  counting:'Bảng count lưu trực tiếp tần suất nên duplicate là trường hợp tự nhiên của Counting Sort.',
+  radix:'Mỗi digit pass ổn định nên các giá trị bằng nhau được giữ đúng qua toàn bộ các pass.'
+};
+const duplicateQuickSnippets = {
+  cpp:`void quickSort3Way(vector<int>& a, int l, int r) {
+  if (l >= r) return;
+  int pivot = a[l];
+  int lt = l, i = l + 1, gt = r;
+  while (i <= gt) {
+    if (a[i] < pivot) swap(a[lt++], a[i++]);
+    else if (a[i] > pivot) swap(a[i], a[gt--]);
+    else i++;                 // a[i] == pivot
+  }
+  quickSort3Way(a, l, lt - 1);
+  quickSort3Way(a, gt + 1, r);
+}`,
+  java:`static void quickSort3Way(int[] a, int l, int r) {
+  if (l >= r) return;
+  int pivot = a[l], lt = l, i = l + 1, gt = r;
+  while (i <= gt) {
+    if (a[i] < pivot) {
+      int t=a[lt]; a[lt++]=a[i]; a[i++]=t;
+    } else if (a[i] > pivot) {
+      int t=a[i]; a[i]=a[gt]; a[gt--]=t;
+    } else i++;              // a[i] == pivot
+  }
+  quickSort3Way(a, l, lt - 1);
+  quickSort3Way(a, gt + 1, r);
+}`,
+  csharp:`static void QuickSort3Way(int[] a, int l, int r) {
+  if (l >= r) return;
+  int pivot=a[l], lt=l, i=l+1, gt=r;
+  while (i <= gt) {
+    if (a[i] < pivot) {
+      (a[lt],a[i])=(a[i],a[lt]); lt++; i++;
+    } else if (a[i] > pivot) {
+      (a[i],a[gt])=(a[gt],a[i]); gt--;
+    } else i++;              // a[i] == pivot
+  }
+  QuickSort3Way(a,l,lt-1);
+  QuickSort3Way(a,gt+1,r);
+}`
+};
+
+function escapeHtml(s){ return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function highlight(code){
+  let s=escapeHtml(code);
+  s=s.replace(/(\/\/.*)$/gm,'<span class="tok-c">$1</span>');
+  s=s.replace(/\b(void|int|bool|boolean|static|return|for|while|if|else|new|vector|const|foreach|var)\b/g,'<span class="tok-k">$1</span>');
+  s=s.replace(/\b(\d+)\b/g,'<span class="tok-n">$1</span>');
+  return s;
+}
+function updateCode(){
+  const algo=getAlgo();
+  let sn=snippets[algo]?.[currentLang] || '// Code unavailable';
+  if(mode==='sort' && allowDuplicates){
+    if(algo==='quick') sn=duplicateQuickSnippets[currentLang];
+    else if(duplicateNotes[algo]) sn=`// Duplicate-safe mode\n// ${duplicateNotes[algo]}\n\n${sn}`;
+    $('#codeSubtitle').textContent=algo==='quick' ? '3-way partition dành cho mảng có nhiều giá trị bằng nhau' : 'Duplicate-safe · chú ý điều kiện xử lý equality';
+  } else {
+    $('#codeSubtitle').textContent='Implementation tương ứng với animation';
+  }
+  $('#codeView').innerHTML=highlight(sn);
+}
+
+$('#algorithmSelect').addEventListener('change',()=>{baseArray=clone(array);buildActions();});
+$('#searchAlgorithm').addEventListener('change',()=>{baseArray=clone(array);buildActions();});
+// Language switch listener is initialized with the floating glass capsule below.
+$('#playBtn').addEventListener('click',play); $('#nextBtn').addEventListener('click',()=>{stop();next();}); $('#prevBtn').addEventListener('click',prev);
+$('#timeline').addEventListener('input',e=>{stop();renderAt(Number(e.target.value),false);});
+$('#speedRange').addEventListener('input',e=>{speed=Number(e.target.value);$('#speedLabel').textContent=`${speed} ms`;setMotionDuration();lastTick=performance.now();});
+$('#elementCountRange').addEventListener('input',e=>{$('#elementCountLabel').textContent=`${clampElementCount(e.target.value)} elements`;});
+$('#elementCountRange').addEventListener('change',e=>{resizeArray(e.target.value);toast(`Đã đặt ${elementCount} phần tử`);});
+$('#duplicatesCheck').addEventListener('change',e=>{
+  allowDuplicates=e.target.checked;
+  $('#duplicateBadge').textContent=allowDuplicates?'Duplicates':'Unique';
+  array=randomArray(elementCount); baseArray=clone(array); buildActions();
+  toast(allowDuplicates?'Đã bật duplicate · tạo mảng mẫu có giá trị bằng nhau':'Đã tắt duplicate · mảng được đưa về unique');
+});
+$('#shuffleBtn').addEventListener('click',()=>{array=randomArray(elementCount);baseArray=clone(array);buildActions();toast(allowDuplicates?`Random ${elementCount} phần tử · có duplicate`:`Random ${elementCount} phần tử · unique`);});
+$('#newArrayBtn').addEventListener('click',()=>{array=randomArray(elementCount);baseArray=clone(array);buildActions();toast(allowDuplicates?`New array · ${elementCount} elements · duplicates`:`New array · ${elementCount} unique elements`);});
+$('#applyArrayBtn').addEventListener('click',()=>{
+  const raw=$('#arrayInput').value.split(/[,\s]+/).map(Number).filter(Number.isFinite);
+  if(raw.length<2){toast('Nhập ít nhất 2 số');return;}
+  const vals=raw.slice(0,50);
+  if(hasDuplicates(vals) && !allowDuplicates){
+    toast('Mảng có giá trị bằng nhau · hãy bật checkbox Duplicate');
+    return;
+  }
+  array=vals; baseArray=clone(vals); syncElementCount(vals.length); buildActions();
+  toast(raw.length>50?'Chỉ lấy 50 phần tử đầu tiên':`Đã áp dụng ${vals.length} phần tử${hasDuplicates(vals)?' · có duplicate':''}`);
+});
+$('#searchRunBtn').addEventListener('click',()=>{baseArray=clone(array);buildActions();step=0;play();});
+
+
+
+// ---------------------------------------------------------------------------
+// Theme: Light / System / Dark. System follows OS changes live and the user's
+// explicit choice is remembered for the next time this standalone file opens.
+// ---------------------------------------------------------------------------
+const themeSwitch = $('#themeSwitch');
+const themeActiveLabel = $('#themeActiveLabel');
+const systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+let themeLiftTimer = 0;
+let themeSettleTimer = 0;
+let themeChoice = 'system';
+try {
+  const savedTheme = localStorage.getItem('algoglass-theme');
+  if(['light','system','dark'].includes(savedTheme)) themeChoice = savedTheme;
+} catch (_) {}
+function resolveTheme(choice){ return choice==='system' ? (systemThemeQuery.matches ? 'dark' : 'light') : choice; }
+function positionThemeCapsule(activeButton, animate=false){
+  if(!themeSwitch || !activeButton) return;
+  themeSwitch.style.setProperty('--theme-x', `${activeButton.offsetLeft}px`);
+  themeSwitch.style.setProperty('--theme-w', `${activeButton.offsetWidth}px`);
+  if(themeActiveLabel) themeActiveLabel.textContent = activeButton.dataset.theme==='system' ? 'System' : activeButton.dataset.theme[0].toUpperCase()+activeButton.dataset.theme.slice(1);
+  if(animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    clearTimeout(themeLiftTimer);
+    themeSwitch.classList.remove('switching');
+    void themeSwitch.offsetWidth;
+    themeSwitch.classList.add('switching');
+    themeLiftTimer=setTimeout(()=>themeSwitch.classList.remove('switching'),700);
+  }
+}
+function paintTheme(choice, animate=false, persist=true){
+  if(!['light','system','dark'].includes(choice)) choice='system';
+  themeChoice=choice;
+  const resolved=resolveTheme(choice);
+  document.body.dataset.themeChoice=choice;
+  document.body.dataset.themeResolved=resolved;
+  const buttons=themeSwitch ? [...themeSwitch.querySelectorAll('button[data-theme]')] : [];
+  buttons.forEach(b=>b.classList.toggle('active',b.dataset.theme===choice));
+  const active=buttons.find(b=>b.dataset.theme===choice);
+  positionThemeCapsule(active,animate);
+  if(persist){ try { localStorage.setItem('algoglass-theme',choice); } catch (_) {} }
+  if(animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    clearTimeout(themeSettleTimer);
+    document.body.classList.remove('theme-changing');
+    void document.body.offsetWidth;
+    document.body.classList.add('theme-changing');
+    themeSettleTimer=setTimeout(()=>document.body.classList.remove('theme-changing'),540);
+  }
+  // Glass metrics can shift by a pixel across themes; re-measure selectors.
+  requestAnimationFrame(()=>{
+    if(typeof positionMenuCapsule==='function') positionMenuCapsule(false);
+    if(typeof positionLangCapsule==='function') positionLangCapsule($('.lang-switch button.active'),false);
+  });
+}
+if(themeSwitch){
+  themeSwitch.addEventListener('click',e=>{
+    const button=e.target.closest('button[data-theme]');
+    if(!button || !themeSwitch.contains(button)) return;
+    paintTheme(button.dataset.theme,themeChoice!==button.dataset.theme,true);
+  });
+}
+const onSystemThemeChange=()=>{
+  if(themeChoice==='system') paintTheme('system',true,false);
+};
+if(systemThemeQuery.addEventListener) systemThemeQuery.addEventListener('change',onSystemThemeChange);
+else if(systemThemeQuery.addListener) systemThemeQuery.addListener(onSystemThemeChange);
+
+const modeTabs = $('#modeTabs');
+const menuRefraction = $('#menuRefraction');
+const menuActiveLabel = $('#menuActiveLabel');
+const langSwitch = $('#langSwitch');
+const langActiveLabel = $('#langActiveLabel');
+let menuLiftTimer = 0;
+let menuRevealTimer = 0;
+let langLiftTimer = 0;
+function syncMenuRefraction(){
+  if(!modeTabs || !menuRefraction) return;
+  modeTabs.style.setProperty('--menu-total-w', `${modeTabs.clientWidth}px`);
+  modeTabs.style.setProperty('--menu-total-h', `${modeTabs.clientHeight}px`);
+  menuRefraction.querySelectorAll('[data-refraction-for]').forEach(label=>{
+    const source = document.getElementById(label.dataset.refractionFor);
+    if(!source) return;
+    label.style.left = `${source.offsetLeft}px`;
+    label.style.top = `${source.offsetTop}px`;
+    label.style.width = `${source.offsetWidth}px`;
+    label.style.height = `${source.offsetHeight}px`;
+  });
+}
+function positionMenuCapsule(animate=false){
+  const active = mode==='sort' ? $('#sortTab') : $('#searchTab');
+  if(!modeTabs || !active) return;
+  syncMenuRefraction();
+  if(menuActiveLabel) menuActiveLabel.textContent = active.textContent.trim();
+  modeTabs.style.setProperty('--capsule-x', `${active.offsetLeft}px`);
+  modeTabs.style.setProperty('--capsule-w', `${active.offsetWidth}px`);
+  if(animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    clearTimeout(menuLiftTimer);
+    clearTimeout(menuRevealTimer);
+    modeTabs.classList.remove('reveal-active');
+    modeTabs.classList.add('switching');
+    // Reveal the destination label while the swollen glass is settling.
+    menuRevealTimer=setTimeout(()=>modeTabs.classList.add('reveal-active'),430);
+    menuLiftTimer=setTimeout(()=>{
+      modeTabs.classList.remove('switching');
+      modeTabs.classList.remove('reveal-active');
+    },760);
+  }
+}
+function positionLangCapsule(activeButton, animate=false){
+  if(!langSwitch || !activeButton) return;
+  langSwitch.style.setProperty('--lang-x', `${activeButton.offsetLeft}px`);
+  langSwitch.style.setProperty('--lang-w', `${activeButton.offsetWidth}px`);
+  if(langActiveLabel) langActiveLabel.textContent = activeButton.textContent.trim();
+  if(animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    clearTimeout(langLiftTimer);
+    langSwitch.classList.remove('switching');
+    // Force a style boundary so repeated fast clicks restart the spring cleanly.
+    void langSwitch.offsetWidth;
+    langSwitch.classList.add('switching');
+    langLiftTimer=setTimeout(()=>langSwitch.classList.remove('switching'),700);
+  }
+}
+function switchLanguage(button){
+  if(!button || !button.dataset.lang) return;
+  const changed=currentLang!==button.dataset.lang;
+  currentLang=button.dataset.lang;
+  document.querySelectorAll('.lang-switch button').forEach(b=>b.classList.toggle('active',b===button));
+  positionLangCapsule(button,changed);
+  updateCode();
+}
+if(langSwitch){
+  langSwitch.addEventListener('click',e=>{
+    const button=e.target.closest('button[data-lang]');
+    if(!button || !langSwitch.contains(button)) return;
+    switchLanguage(button);
+  });
+}
+
+function switchMode(nextMode){
+  if(nextMode===mode){ positionMenuCapsule(false); return; }
+  mode=nextMode;
+  stop();
+  document.body.classList.toggle('search-mode',mode==='search');
+  $('#sortTab').classList.toggle('active',mode==='sort');
+  $('#searchTab').classList.toggle('active',mode==='search');
+  positionMenuCapsule(true);
+  baseArray=clone(array);
+  buildActions();
+}
+$('#sortTab').addEventListener('click',()=>switchMode('sort'));
+$('#searchTab').addEventListener('click',()=>switchMode('search'));
+window.addEventListener('resize',()=>{positionMenuCapsule(false);const activeLang=$('.lang-switch button.active');positionLangCapsule(activeLang,false);const activeTheme=$('.theme-switch button.active');positionThemeCapsule(activeTheme,false);},{passive:true});
+
+$('#duplicatesCheck').checked=allowDuplicates;
+$('#duplicateBadge').textContent=allowDuplicates?'Duplicates':'Unique';
+// Apply theme before the first full visual render so System starts without a flash.
+paintTheme(themeChoice,false,false);
+syncElementCount(array.length);
+buildActions();
+positionMenuCapsule(false);
+positionLangCapsule($('.lang-switch button.active'),false);
+positionThemeCapsule($('.theme-switch button.active'),false);
+requestAnimationFrame(()=>{positionMenuCapsule(false);positionThemeCapsule($('.theme-switch button.active'),false);});
+</script>
+</body>
+</html>
