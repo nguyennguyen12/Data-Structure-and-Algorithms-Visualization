@@ -572,6 +572,14 @@
 
   .code-panel { position: sticky; top: 104px; }
   .code-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; }
+  .idea-note { margin-top:12px; padding:12px 13px; border-radius:16px; border:1px solid var(--border); background:rgba(127,167,190,.07); }
+  .idea-note h4 { margin:0 0 8px; font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); }
+  .idea-note h4 b { color:var(--text); font-size:11px; letter-spacing:.02em; }
+  .idea-note ul { margin:0; padding-left:16px; display:grid; gap:5px; }
+  .idea-note li { font-size:11px; line-height:1.55; color:var(--text); }
+  .idea-note li::marker { color:var(--cyan-2, var(--cyan)); }
+  .idea-memo { margin:9px 0 0; font-size:10.5px; line-height:1.55; color:var(--muted); }
+  .idea-memo b { color:var(--text); }
   .code-title h2 { margin:0; font-size:16px; }
   .code-title p { margin:4px 0 0; color:var(--muted); font-size:11px; }
   .lang-switch { display:flex; padding:3px; gap:3px; background:linear-gradient(145deg, rgba(255,255,255,.035), rgba(0,18,21,.08)); border:1px solid rgba(214,255,252,.10); border-radius:13px; box-shadow:inset 0 1px 0 rgba(255,255,255,.05); }
@@ -762,7 +770,8 @@
   }
   .menu-capsule::after { border-color:rgba(255,255,255,.30); box-shadow:inset 0 -8px 18px rgba(30,64,175,.10); }
   .segmented button { color:#64748b; }
-  .segmented button.active { color:#fff; text-shadow:0 1px 5px rgba(15,23,42,.22); }
+  .segmented button.active { color:#1e3a5f; text-shadow:0 1px 0 rgba(255,255,255,.50); }
+  .menu-capsule .floating-active-label { color:#1e3a5f; text-shadow:0 1px 0 rgba(255,255,255,.50); }
 
   select, input[type="text"] {
     color:#1e293b;
@@ -1245,7 +1254,7 @@
     backdrop-filter:blur(14px) saturate(185%) brightness(1.07);
     -webkit-backdrop-filter:blur(14px) saturate(185%) brightness(1.07);
   }
-  .lang-capsule .floating-active-label { font-size:10px; padding:0 8px; }
+  .lang-capsule .floating-active-label { font-size:10px; padding:0 8px; color:#12325d; text-shadow:0 1px 0 rgba(255,255,255,.40); }
   .lang-capsule::before {
     content:"";
     position:absolute;
@@ -1503,7 +1512,7 @@
   .theme-switch button > span:first-child { font-size:12px; line-height:1; }
   .theme-switch button.active { color:transparent; text-shadow:none; }
   .theme-switch.switching button.active { color:transparent; opacity:0; }
-  .theme-capsule .floating-active-label { font-size:10px; padding:0 8px; }
+  .theme-capsule .floating-active-label { font-size:10px; padding:0 8px; color:#1e293b; text-shadow:0 1px 0 rgba(255,255,255,.55); }
   .theme-caustic {
     position:absolute;
     z-index:7;
@@ -1813,6 +1822,11 @@
         </div>
       </div>
       <pre><code id="codeView"></code></pre>
+      <div class="idea-note" aria-live="polite">
+        <h4>💡 Ý tưởng · <b id="ideaName">Bubble Sort</b></h4>
+        <ul id="ideaList"></ul>
+        <p class="idea-memo" id="ideaMemo"></p>
+      </div>
     </aside>
   </main>
 
@@ -2424,6 +2438,77 @@ function highlight(code){
   s=s.replace(/\b(\d+)\b/g,'<span class="tok-n">$1</span>');
   return s;
 }
+const algoIdeas = {
+  bubble:{ steps:[
+    'Duyệt mảng nhiều vòng; mỗi vòng so sánh từng cặp kề nhau và đổi chỗ nếu sai thứ tự.',
+    'Sau mỗi vòng, phần tử lớn nhất còn lại “nổi bọt” về đúng vị trí cuối mảng.',
+    'Dừng sớm khi một vòng không xảy ra lần đổi chỗ nào — mảng đã có thứ tự.'
+  ], memo:'Chậm (O(n²)) nhưng trực quan nhất — hợp để học khái niệm compare/swap, không dùng cho dữ liệu lớn.' },
+  selection:{ steps:[
+    'Ở mỗi bước i, quét toàn bộ phần chưa sắp xếp để tìm phần tử nhỏ nhất.',
+    'Đổi chỗ nó về vị trí i — mỗi vòng chỉ tốn đúng một lần swap.',
+    'Ranh giới giữa vùng đã sắp xếp và chưa sắp xếp dịch dần sang phải.'
+  ], memo:'Số lần swap tối thiểu (n−1) — đáng cân nhắc khi thao tác ghi/đổi chỗ tốn kém.' },
+  insertion:{ steps:[
+    'Coi phần bên trái là đã sắp xếp; lấy phần tử kế tiếp làm “key”.',
+    'Dịch các phần tử lớn hơn key sang phải để chừa chỗ, rồi chèn key vào đúng vị trí.',
+    'Giống cách xếp bài trên tay: mỗi lá mới được chèn vào giữa các lá đã xếp.'
+  ], memo:'Cực nhanh với mảng gần như đã sắp xếp — trường hợp tốt nhất chỉ O(n).' },
+  merge:{ steps:[
+    'Chia đôi mảng đệ quy đến khi mỗi phần chỉ còn một phần tử (hiển nhiên đã sắp xếp).',
+    'Trộn từng cặp mảng con: liên tục so sánh phần tử đầu hai bên, lấy phần tử nhỏ hơn.',
+    'Mỗi tầng trộn duyệt đủ n phần tử; có log n tầng.'
+  ], memo:'Luôn O(n log n) và stable, đổi lại cần O(n) bộ nhớ phụ — chuẩn mực cho dữ liệu lớn.' },
+  quick:{ steps:[
+    'Chọn một phần tử làm pivot rồi partition: nhỏ hơn pivot về bên trái, lớn hơn về bên phải.',
+    'Sau partition, pivot đứng đúng vị trí cuối cùng của nó trong mảng đã sắp xếp.',
+    'Đệ quy trên hai nửa hai bên pivot — không cần bước trộn nào.'
+  ], memo:'Trung bình O(n log n) với hằng số nhỏ; tệ nhất O(n²) khi pivot chọn xấu (mảng gần sắp xếp + pivot đầu/cuối).' },
+  quick3:{ steps:[
+    'Partition thành ba vùng (Dutch National Flag): nhỏ hơn, bằng, và lớn hơn pivot.',
+    'Toàn bộ khối bằng pivot về đúng chỗ trong một lượt — không bị đệ quy lại.',
+    'Chỉ đệ quy trên hai vùng nhỏ hơn và lớn hơn.'
+  ], memo:'Biến thể tối ưu cho mảng nhiều giá trị trùng nhau — nhóm bằng pivot chỉ xử lý một lần.' },
+  heap:{ steps:[
+    'Xây max-heap trên chính mảng: mọi node cha lớn hơn hoặc bằng node con.',
+    'Lặp: đổi chỗ đỉnh heap (giá trị lớn nhất) với phần tử cuối, thu hẹp heap đi một.',
+    'Heapify lại từ đỉnh để khôi phục tính chất heap, rồi tiếp tục.'
+  ], memo:'O(n log n) ngay tại chỗ, không cần bộ nhớ phụ — nhưng không stable.' },
+  shell:{ steps:[
+    'Chạy insertion sort theo “gap” lớn rồi giảm dần (n/2, n/4, …, 1).',
+    'Gap lớn đưa phần tử ở xa về gần đúng vị trí chỉ với vài bước nhảy.',
+    'Đến lượt gap = 1, mảng đã gần sắp xếp nên insertion sort kết thúc rất nhanh.'
+  ], memo:'Cải tiến của insertion sort cho phần tử ở xa; độ phức tạp phụ thuộc dãy gap được chọn.' },
+  counting:{ steps:[
+    'Đếm tần suất từng giá trị vào bảng count trên khoảng [min, max].',
+    'Duyệt bảng count theo thứ tự giá trị, ghi lại mỗi giá trị đúng số lần đã đếm.',
+    'Không hề so sánh hai phần tử với nhau — sắp xếp bằng đếm.'
+  ], memo:'O(n + k) — vượt mặt mọi thuật toán so sánh khi miền giá trị k nhỏ.' },
+  radix:{ steps:[
+    'Sắp xếp theo từng chữ số, từ hàng đơn vị lên hàng cao nhất.',
+    'Mỗi lượt dùng counting sort ổn định trên một chữ số.',
+    'Nhờ tính stable, thứ tự đạt được ở các lượt trước được bảo toàn qua lượt sau.'
+  ], memo:'O(d·(n+k)) với d là số chữ số — mạnh với số nguyên và chuỗi độ dài cố định.' },
+  linear:{ steps:[
+    'Duyệt tuần tự từ trái sang phải, so sánh từng phần tử với giá trị cần tìm.',
+    'Gặp là dừng ngay; duyệt hết mảng mà không gặp nghĩa là không tồn tại.'
+  ], memo:'Không đòi hỏi mảng sắp xếp — lựa chọn duy nhất cho dữ liệu chưa có thứ tự; O(n).' },
+  binary:{ steps:[
+    'Chỉ hoạt động trên mảng đã sắp xếp: so sánh target với phần tử chính giữa.',
+    'Loại bỏ nửa chắc chắn không chứa target, lặp lại trên nửa còn lại.',
+    'Kết thúc khi tìm thấy hoặc đoạn tìm kiếm rỗng.'
+  ], memo:'Mỗi bước loại một nửa dữ liệu — chỉ O(log n) lần so sánh.' }
+};
+function updateIdea(){
+  const algo=getAlgo();
+  const key=(mode==='sort' && allowDuplicates && algo==='quick') ? 'quick3' : algo;
+  const idea=algoIdeas[key]||algoIdeas[algo];
+  if(!idea) return;
+  $('#ideaName').textContent=$('#codeHeading').textContent;
+  $('#ideaList').innerHTML=idea.steps.map(s=>'<li>'+s+'</li>').join('');
+  $('#ideaMemo').innerHTML='<b>Nhớ nhanh:</b> '+idea.memo;
+}
+
 function updateCode(){
   const algo=getAlgo();
   let sn=snippets[algo]?.[currentLang] || '// Code unavailable';
@@ -2435,6 +2520,7 @@ function updateCode(){
     $('#codeSubtitle').textContent='Implementation tương ứng với animation';
   }
   $('#codeView').innerHTML=highlight(sn);
+  updateIdea();
 }
 
 $('#algorithmSelect').addEventListener('change',()=>{baseArray=clone(array);buildActions();});
