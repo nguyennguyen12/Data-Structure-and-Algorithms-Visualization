@@ -534,6 +534,8 @@
   body.is-playing .bar-wrap.sorted .bar, body.is-playing .bar-wrap.sorted .node { box-shadow: 0 4px 14px rgba(0,0,0,.16); }
   body.is-playing .visual-stage::before { filter: blur(9px); opacity: .72; }
   .bar-wrap.swap { position: relative; }
+  /* Swap hand-off: the exchange already animated physically, so the commit frame must not replay base transitions. */
+  .bars.no-motion .bar-wrap, .bars.no-motion .bar, .bars.no-motion .node, .bars.no-motion .index { transition: none !important; }
   .index { text-align:center; color:#659395; font-size:10px; font-weight:800; will-change: transform; transform: translateZ(0); }
 
   /* Dense layouts let the visualizer scale cleanly up to 50 elements. */
@@ -2163,16 +2165,26 @@ function paintState(st, displayStep=step){
   $('#playBtn').textContent=playing?'Ⅱ':'▶';
 }
 
+function commitSwapFrame(swapInfo, st, displayStep){
+  // Commit post-swap values and strip the flight transforms inside one
+  // transition-free frame: the items already sit at their destination, so the
+  // hand-off must not replay height/transform transitions (visible settle wobble).
+  barsEl.classList.add('no-motion');
+  paintState(st, displayStep);
+  swapInfo.animations.forEach(a=>{ try{a.cancel();}catch(_){} });
+  if(swapInfo.wraps) swapInfo.wraps.forEach(w=>{ w.style.zIndex=''; w.style.contain=''; });
+  void barsEl.offsetWidth;
+  barsEl.classList.remove('no-motion');
+}
+
 function finishActiveSwap(){
   if(!activeSwap) return;
   const current=activeSwap;
   activeSwap=null;
   swapAnimating=false;
   swapToken++;
-  current.animations.forEach(a=>{ try{a.cancel();}catch(_){} });
-  if(current.wraps) current.wraps.forEach(w=>w.style.zIndex='');
   step=current.targetStep;
-  paintState(stateAt(step),step);
+  commitSwapFrame(current, stateAt(step), step);
   lastTick=performance.now();
 }
 
@@ -2181,7 +2193,7 @@ function animateSwapTo(targetStep, ac){
   const from=stateAt(fromStep);
   const to=stateAt(targetStep);
   const i=ac.i, j=ac.j;
-  if(i===j || !barNodes[i] || !barNodes[j]){
+  if(i===j || !barNodes[i] || !barNodes[j] || window.matchMedia('(prefers-reduced-motion: reduce)').matches){
     step=targetStep; paintState(to,step); return;
   }
 
@@ -2212,6 +2224,9 @@ function animateSwapTo(targetStep, ac){
   const token=++swapToken;
   left.wrap.style.zIndex='6';
   right.wrap.style.zIndex='5';
+  // contain:paint on .bar-wrap would clip the counter-moving index labels mid-flight.
+  left.wrap.style.contain='layout style';
+  right.wrap.style.contain='layout style';
 
   // Move each full value-item (number + bar) to the opposite array slot.
   // Slightly different arcs prevent the two items from visually merging while crossing.
@@ -2246,14 +2261,11 @@ function animateSwapTo(targetStep, ac){
     if(!activeSwap || activeSwap.token!==token || token!==swapToken) return;
     const done=activeSwap;
     activeSwap=null;
-
-    // Commit destination values while the items are still visually at the destination,
-    // then remove temporary transforms in the same frame for a seamless hand-off.
-    paintState(to,targetStep);
-    done.animations.forEach(a=>{try{a.cancel();}catch(_){}});
-    done.wraps.forEach(w=>w.style.zIndex='');
+    commitSwapFrame(done, to, targetStep);
     swapAnimating=false;
-    lastTick=performance.now();
+    // The flight already consumed most of this tick; keep only a short settle so
+    // playback rhythm stays even instead of stalling a full interval per swap.
+    lastTick=performance.now()-Math.max(0,speed-Math.max(60,Math.round(speed*0.35)));
   });
 }
 
